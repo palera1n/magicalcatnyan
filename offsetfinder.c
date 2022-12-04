@@ -430,6 +430,10 @@ uint64_t find_jumpto_func(uint64_t region, uint8_t* data, size_t size)
 uint64_t find_panic(uint64_t region, uint8_t* data, size_t size)
 {
     uint8_t* str = memmem(data, size, "unknown LPDDR4 density %d", sizeof("unknown LPDDR4 density %d"));
+    
+    if(!str)
+        str = memmem(data, size, "Failed to find adfe tunables info, bailing adfe_init()\n", sizeof("Failed to find adfe tunables info, bailing adfe_init()\n"));
+    
     if(!str)
         return 0;
     

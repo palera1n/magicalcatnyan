@@ -9,7 +9,6 @@ CFLAGS	+= -Wl,-e,start -Wl,-order_file,sym_order.txt -Wl,-image_base,0x100000000
 OBJ		= payload
 
 SOURCE	=	\
-			payload.c \
 			offsetfinder.c \
 			drivers/dt/dtree.c \
 			drivers/dt/dtree_getprop.c \
@@ -25,11 +24,14 @@ SOURCE	=	\
 .PHONY: all
 
 all:
-	$(CC) entry.S $(SOURCE) $(CFLAGS) -o $(OBJ).o
+	$(CC) entry.S payload.c $(SOURCE) $(CFLAGS) -o $(OBJ).o
 	./vmacho -fM 0x80000 $(OBJ).o $(OBJ).bin
+	$(CC) entry.S payload_t8010.c $(SOURCE) $(CFLAGS) -o $(OBJ)_t8010.o
+	./vmacho -fM 0x80000 $(OBJ)_t8010.o $(OBJ)_t8010.bin
 	
 clean:
-	-$(RM) $(ASMSOURCE)
 	-$(RM) $(OBJ).o
 	-$(RM) $(OBJ).bin
+	-$(RM) $(OBJ)_t8010.o
+	-$(RM) $(OBJ)_t8010.bin
 	
