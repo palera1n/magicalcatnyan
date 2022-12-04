@@ -1,41 +1,14 @@
-/* payload.c
- *
- * 2022/11/01
- * (c) dora2ios
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #include <stdint.h>
 #include <stdbool.h>
 
 #include <common.h>
 #include <offsetfinder.h>
 
-#include <fuse/fuse.h>
-
-static bool RAMDisk = 0;
-
 static void usage(void)
 {
     iprintf("usage: %s <cmd>\n", "go");
     iprintf("cmd:\n");
     iprintf("\tboot\t\t: boot xnu\n");
-    iprintf("\tramdisk\t\t: boot xnu with ramdisk\n");
-    iprintf("\tfuse_demote\t: demote fuse\n");
-    iprintf("\tfuse_lock\t: lock fuse\n");
-    iprintf("\tfuse_info\t: check fuse info\n");
 }
 
 int payload(int argc, struct cmd_arg *args)
@@ -44,7 +17,6 @@ int payload(int argc, struct cmd_arg *args)
     {
         if(iboot_func_init()) return -1;
         iprintf("-------- relocated --------\n");
-        usage();
         return 0;
     }
     else
@@ -54,9 +26,7 @@ int payload(int argc, struct cmd_arg *args)
     
     iprintf("-------- payload start --------\n");
     
-    // args[1].str: arg str
-    // args[1].u: num
-    if (argc == 1)
+    if (argc != 2)
     {
         usage();
         return 0;
@@ -66,35 +36,7 @@ int payload(int argc, struct cmd_arg *args)
     {
         if(!strcmp(args[1].str, "boot"))
         {
-            fuse_cmd_lock();
-            RAMDisk = 0;
             fsboot();
-            return 0;
-        }
-        
-        if(!strcmp(args[1].str, "ramdisk"))
-        {
-            fuse_cmd_lock();
-            RAMDisk = 1;
-            fsboot();
-            return 0;
-        }
-        
-        if(!strcmp(args[1].str, "fuse_demote"))
-        {
-            fuse_cmd_demote();
-            return 0;
-        }
-        
-        if(!strcmp(args[1].str, "fuse_lock"))
-        {
-            fuse_cmd_lock();
-            return 0;
-        }
-        
-        if(!strcmp(args[1].str, "fuse_info"))
-        {
-            fuse_cmd_status();
             return 0;
         }
     }
@@ -115,21 +57,38 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     
     gDeviceTree = (void*)((uint64_t)gBootArgs->deviceTreeP - gBootArgs->virtBase + gBootArgs->physBase);
     
-    iprintf("entryp: %016llx: %08x\n", (uint64_t)entryp, *(uint32_t*)entryp);
-    iprintf("virtBase: %016llx\n", gBootArgs->virtBase);
-    iprintf("physBase: %016llx\n", gBootArgs->physBase);
-    
-    kpf(RAMDisk);
-    
-    iprintf("old bootArgs: %s\n", gBootArgs->CommandLine);
-    
-    // TODO
-    if(RAMDisk)
-        memcpy((void*)gBootArgs->CommandLine, "rd=md0 wdt=-1 serial=3\x00", sizeof("rd=md0 wdt=-1 serial=3\x00"));
-    else
-        memcpy((void*)gBootArgs->CommandLine, "rd=disk0s1s8 serial=3\x00", sizeof("rd=disk0s1s8 serial=3\x00"));
+    {
+        uint32_t len = 0;
+        dt_node_t* dev = dt_find(gDeviceTree, "chosen");
+        if (!dev) panic("invalid devicetree: no device!");
+        uint32_t* val = dt_prop(dev, "root-matching", &len);
+        if (!val) panic("invalid devicetree: no prop!");
         
-    iprintf("new bootArgs: %s\n", gBootArgs->CommandLine);
+        //char str[0x100];
+        //memset(&str, 0x0, 0x100);
+        //sprintf(str, "<dict ID=\"0\"><key>IOProviderClass</key><string ID=\"1\">IOService</string><key>BSD Name</key><string ID=\"2\">disk0s1s8</string></dict>");
+        
+        unsigned char str[] = {
+            0x3c, 0x64, 0x69, 0x63, 0x74, 0x20, 0x49, 0x44, 0x3d, 0x22, 0x30, 0x22,
+            0x3e, 0x3c, 0x6b, 0x65, 0x79, 0x3e, 0x49, 0x4f, 0x50, 0x72, 0x6f, 0x76,
+            0x69, 0x64, 0x65, 0x72, 0x43, 0x6c, 0x61, 0x73, 0x73, 0x3c, 0x2f, 0x6b,
+            0x65, 0x79, 0x3e, 0x3c, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x49,
+            0x44, 0x3d, 0x22, 0x31, 0x22, 0x3e, 0x49, 0x4f, 0x53, 0x65, 0x72, 0x76,
+            0x69, 0x63, 0x65, 0x3c, 0x2f, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x3e,
+            0x3c, 0x6b, 0x65, 0x79, 0x3e, 0x42, 0x53, 0x44, 0x20, 0x4e, 0x61, 0x6d,
+            0x65, 0x3c, 0x2f, 0x6b, 0x65, 0x79, 0x3e, 0x3c, 0x73, 0x74, 0x72, 0x69,
+            0x6e, 0x67, 0x20, 0x49, 0x44, 0x3d, 0x22, 0x32, 0x22, 0x3e, 0x64, 0x69,
+            0x73, 0x6b, 0x30, 0x73, 0x31, 0x73, 0x38, 0x3c, 0x2f, 0x73, 0x74, 0x72,
+            0x69, 0x6e, 0x67, 0x3e, 0x3c, 0x2f, 0x64, 0x69, 0x63, 0x74, 0x3e
+        };
+        unsigned int txt_len = 131;
+
+        
+        memset(val, 0x0, 0x100);
+        memcpy(val, str, txt_len);
+        iprintf("set new entry: %016llx: disk0s1s8\n", (uint64_t)val);
+    }
+    
     
     iprintf("-------- bye payload --------\n");
     
@@ -154,14 +113,13 @@ int jump_hook(void* boot_image, void* boot_args)
 
 int iboot_func_init(void)
 {
-    // T8015 only
+    // T8015
     if(*(uint32_t*)PAYLOAD_BASE_ADDRESS == 0)
     {
-        
+        //memcpy(relocate_addr, load_addr, size)
         memcpy((void*)PAYLOAD_BASE_ADDRESS, (void*)0x801000000, 0x80000);
         
         uint64_t iboot_base = 0x18001c000;
-        uint64_t fuseBase = 0x2352bc000;
         
         void* idata = (void *)(0x18001c000);
         size_t isize = *(uint64_t *)(idata + 0x308) - iboot_base;
@@ -184,28 +142,15 @@ int iboot_func_init(void)
             return -1;
         _jumpto_func += iboot_base;
         
-        uint64_t _malloc = find_malloc(iboot_base, idata, isize);
-        if(!_malloc)
-            return -1;
-        _malloc += iboot_base;
-        
         uint64_t _panic = find_panic(iboot_base, idata, isize);
         if(!_panic)
             return -1;
         _panic += iboot_base;
         
-        uint64_t _free = find_free(iboot_base, idata, isize);
-        if(!_free)
-            return -1;
-        _free += iboot_base;
-        
-        offsetBase[0] = fuseBase;
-        offsetBase[1] = _printf;
-        offsetBase[2] = _mount_and_boot_system;
-        offsetBase[3] = _jumpto_func;
-        offsetBase[4] = _malloc;
-        offsetBase[5] = _panic;
-        offsetBase[6] = _free;
+        offsetBase[0] = _printf;
+        offsetBase[1] = _mount_and_boot_system;
+        offsetBase[2] = _jumpto_func;
+        offsetBase[3] = _panic;
     }
     
     iboot_func_load();
@@ -216,13 +161,10 @@ int iboot_func_init(void)
 void iboot_func_load(void)
 {
     uint64_t* offsetBase = (uint64_t*)(PAYLOAD_BASE_ADDRESS + 0x40);
-    gFuseBase = offsetBase[0];
-    iprintf = (printf_t)offsetBase[1];
-    fsboot  = (fsboot_t)offsetBase[2];
-    jumpto  = (jumpto_t)offsetBase[3];
-    imalloc = (malloc_t)offsetBase[4];
-    panic   = (panic_t) offsetBase[5];
-    ifree   = (free_t)  offsetBase[6];
+    iprintf = (printf_t)offsetBase[0];
+    fsboot  = (fsboot_t)offsetBase[1];
+    jumpto  = (jumpto_t)offsetBase[2];
+    panic   = (panic_t) offsetBase[3];
 }
 
 int main(void)

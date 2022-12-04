@@ -3,3 +3,6 @@
 .irecovery
 irecovery
 vmacho
+txt
+*.bin
+*.o

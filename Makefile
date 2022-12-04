@@ -11,20 +11,13 @@ OBJ		= payload
 SOURCE	=	\
 			payload.c \
 			offsetfinder.c \
-			#kpf.c \
-			shellcode.S \
-			drivers/fuse/fuse.c \
-			drivers/xnu/xnu.s \
 			drivers/dt/dtree.c \
 			drivers/dt/dtree_getprop.c \
 			lib/memset.c \
 			lib/memmem.c \
-			lib/memcmp.c \
 			lib/memmove.c \
 			lib/strcmp.c \
 			lib/strlen.c \
-			lib/strstr.c \
-			lib/strtoull.c \
 			lib/strcpy.c \
 			lib/strchr.c \
 			lib/strncmp.c
