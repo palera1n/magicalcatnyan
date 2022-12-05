@@ -114,7 +114,7 @@ static int dt_find_cb(void *a, dt_node_t *node, int depth, const char *key, void
         const char *end = strchr(name, '/');
         if(end) // Handle non-leaf segment
         {
-            size_t size = end - name;
+            my_size_t size = end - name;
             if(strncmp(name, val, size) == 0 && size + 1 == len && ((const char*)val)[size] == '\0')
             {
                 arg->name = end;
@@ -144,7 +144,7 @@ typedef struct
 {
     const char *key;
     void *val;
-    size_t len;
+    my_size_t len;
 } dt_prop_cb_t;
 
 static int dt_prop_cb(void *a, dt_node_t *node, int depth, const char *key, void *val, uint32_t len)

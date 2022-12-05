@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <offsetfinder.h>
 
-static uint32_t* find_next_insn_matching_64(uint64_t region, uint8_t* kdata, size_t ksize, uint32_t* current_instruction, int (*match_func)(uint32_t*))
+static uint32_t* find_next_insn_matching_64(uint64_t region, uint8_t* kdata, my_size_t ksize, uint32_t* current_instruction, int (*match_func)(uint32_t*))
 {
     while((uintptr_t)current_instruction < (uintptr_t)kdata + ksize - 4) {
         current_instruction++;
@@ -212,7 +212,7 @@ int insn_is_funcbegin_64(uint32_t* i)
     return 0;
 }
 
-static uint32_t* find_literal_ref_64(uint64_t region, uint8_t* kdata, size_t ksize, uint32_t* insn, uint64_t address)
+static uint32_t* find_literal_ref_64(uint64_t region, uint8_t* kdata, my_size_t ksize, uint32_t* insn, uint64_t address)
 {
     uint32_t* current_instruction = insn;
     uint64_t registers[32];
@@ -293,7 +293,7 @@ static uint32_t* find_literal_ref_64(uint64_t region, uint8_t* kdata, size_t ksi
     return NULL;
 }
 
-uint64_t find_printf(uint64_t region, uint8_t* data, size_t size)
+uint64_t find_printf(uint64_t region, uint8_t* data, my_size_t size)
 {
     uint8_t* str = memmem(data, size, "Entering recovery mode, starting command prompt\n", sizeof("Entering recovery mode, starting command prompt\n"));
     if(!str)
@@ -313,7 +313,7 @@ uint64_t find_printf(uint64_t region, uint8_t* data, size_t size)
     return ((uintptr_t)bl_addr - (uintptr_t)data) + insn_bl_imm32_64(bl_addr);
 }
 
-uint64_t find_mount_and_boot_system(uint64_t region, uint8_t* data, size_t size)
+uint64_t find_mount_and_boot_system(uint64_t region, uint8_t* data, my_size_t size)
 {
     if(!region)
         return 0;
@@ -350,7 +350,7 @@ uint64_t find_mount_and_boot_system(uint64_t region, uint8_t* data, size_t size)
     return ret;
 }
 
-uint64_t find_jumpto_bl(uint64_t region, uint8_t* data, size_t size)
+uint64_t find_jumpto_bl(uint64_t region, uint8_t* data, my_size_t size)
 {
     uint32_t search[2];
     
@@ -377,7 +377,7 @@ uint64_t find_jumpto_bl(uint64_t region, uint8_t* data, size_t size)
     return ((uintptr_t)bl_addr - (uintptr_t)data);
 }
 
-//uint64_t find_jumpto_func(uint64_t region, uint8_t* data, size_t size)
+//uint64_t find_jumpto_func(uint64_t region, uint8_t* data, my_size_t size)
 //{
 //    uint32_t search[2];
 //
@@ -404,7 +404,7 @@ uint64_t find_jumpto_bl(uint64_t region, uint8_t* data, size_t size)
 //    return ((uintptr_t)bl_addr - (uintptr_t)data) + insn_bl_imm32_64(bl_addr);
 //}
 
-uint64_t find_jumpto_func(uint64_t region, uint8_t* data, size_t size)
+uint64_t find_jumpto_func(uint64_t region, uint8_t* data, my_size_t size)
 {
     uint32_t search[2];
     
@@ -427,7 +427,7 @@ uint64_t find_jumpto_func(uint64_t region, uint8_t* data, size_t size)
     return ((uintptr_t)jump - (uintptr_t)data) + 8 + 4;
 }
 
-uint64_t find_panic(uint64_t region, uint8_t* data, size_t size)
+uint64_t find_panic(uint64_t region, uint8_t* data, my_size_t size)
 {
     uint8_t* str = memmem(data, size, "unknown LPDDR4 density %d", sizeof("unknown LPDDR4 density %d"));
     

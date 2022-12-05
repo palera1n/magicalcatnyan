@@ -47,6 +47,7 @@ uint64_t dt_get_u64_prop(const char* device, const char* prop) {
     return rval;
 }
 uint64_t dt_get_u64_prop_i(const char* device, const char* prop, uint32_t idx) {
+    printf("dt_get_u64_prop_i(%s, %s, %u)\n", device, prop, idx);
     uint64_t rval = 0;
     uint32_t len = 0;
     dt_node_t* dev = dt_find(gDeviceTree, device);

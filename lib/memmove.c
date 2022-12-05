@@ -29,7 +29,7 @@
 
 #include <common.h>
 
-void *memcpy(void *dst, const void *src, size_t len)
+void *memcpy(void *dst, const void *src, my_size_t len)
 {
     const char *s = src;
     char       *d = dst;
@@ -48,7 +48,7 @@ void *memcpy(void *dst, const void *src, size_t len)
     return dst;
 }
 
-void *memmove(void *dest, const void *src, size_t n)
+void *memmove(void *dest, const void *src, my_size_t n)
 {
     return memcpy(dest, src, n);
 }

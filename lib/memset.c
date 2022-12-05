@@ -29,7 +29,7 @@
 
 #include <common.h>
 
-void *memset(void *dst, int ch, size_t len)
+void *memset(void *dst, int ch, my_size_t len)
 {
     long tmp = 0x0101010101010101 * (ch & 0x000000FF);
     char *dest = dst;

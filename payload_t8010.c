@@ -1,15 +1,35 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "printf.h"
+#include "drivers/tz/tz.h"
 #include <common.h>
 #include <offsetfinder.h>
+
+extern uint64_t dt_get_u64_prop(const char* device, const char* prop);
+extern uint64_t dt_get_u64_prop_i(const char* device, const char* prop, uint32_t idx);
 
 static void usage(void)
 {
     iprintf("usage: %s <cmd>\n", "go");
     iprintf("cmd:\n");
-    iprintf("\tboot\t\t: boot xnu\n");
+    iprintf("\tboot\t\t\t: boot xnu\n");
+    iprintf("\tpeek <addr> <size>\t: dump memory\n");
+    iprintf("\tpoke <addr> <uint64>\t: write <uint64> to <addr>\n");
+#if 0
+    iprintf("\tlinux\t\t\t: copy linux image from upload area\n");
+    iprintf("\tinitrd\t\t\t: copy initial ramdisk from upload area\n");
+    iprintf("\tfdt\t\t\t: copy linux fdt from upload area\n");
+    iprintf("\tlinux_cmdline [cmdline]\t: set linux boot command line\n");
+    iprintf("\tbootl\t\t\t: boots linux\n");
+    iprintf("\ttz\t\t\t: trustzone info\n");
+    iprintf("\ttz0_set\t\t\t: change tz0 registers\n");
+    iprintf("\ttz_init\t\t\t: init tz (crashes device, required for other tz commands)\n");
+    iprintf("\ttz_lockdown\t\t: trustzone lockdown\n");
+    iprintf("\ttz_blackbird\t\t: trustzone blackbird attack\n");
+#endif
 }
+
 
 int payload(int argc, struct cmd_arg *args)
 {
@@ -17,6 +37,7 @@ int payload(int argc, struct cmd_arg *args)
     {
         if(iboot_func_init()) return -1;
         iprintf("-------- relocated --------\n");
+        printf("&gIOBase = 0x%p, &gTZRegBase = 0x%p\n", &gIOBase, &gTZRegbase);
         return 0;
     }
     else
@@ -26,21 +47,39 @@ int payload(int argc, struct cmd_arg *args)
     
     iprintf("-------- payload start --------\n");
     
-    if (argc != 2)
-    {
-        usage();
-        return 0;
-    }
-    
-    if (argc == 2)
-    {
-        if(!strcmp(args[1].str, "boot"))
-        {
+    if (argc == 2) {
+        if(!strcmp(args[1].str, "boot")) {
             fsboot();
+            return 0;
+        } else if (!strcmp(args[1].str, "tz_blackbird")) {
+            tz_blackbird();
+            return 0;
+        } else if (!strcmp(args[1].str, "tz_lockdown")) {
+            tz_lockdown();
+            return 0;
+        } else if (!strcmp(args[1].str, "tz")) {
+            tz_command();
+            return 0;
+        } else if (!strcmp(args[1].str, "tz_init")) {            
+            gIOBase = dt_get_u64_prop_i("arm-io", "ranges", 1);
+            tz_setup();
+            printf("gIOBase = %lld, gTZRegBase = %lld\n", gIOBase, gTZRegbase);
+            return 0;
+        } 
+    } else if (argc == 4) {
+        if(!strcmp(args[1].str, "tz0_set")) {
+            tz0_set(args[2].str, args[3].str);
+            return 0;
+        } else if (!strcmp(args[1].str, "peek")) {
+            peek(args[2].str, args[3].str);
+            return 0;
+        } else if (!strcmp(args[1].str, "poke")) {
+            poke(args[2].str, args[3].str);
             return 0;
         }
     }
-     
+    iprintf("unknown command/ bad arg count\n");
+    usage();
     return 0;
 }
 
@@ -63,12 +102,12 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
         if (!dev) panic("invalid devicetree: no device!");
         uint32_t* val = dt_prop(dev, "root-matching", &len);
         if (!val) panic("invalid devicetree: no prop!");
+        char str_2[0x100];
+        memset(&str_2, 0x0, 0x100);
+        sprintf(str_2, "<dict ID=\"0\"><key>IOProviderClass</key><string ID=\"1\">IOService</string><key>BSD Name</key><string ID=\"2\">" ROOTDEV "</string></dict>");
         
-        //char str[0x100];
-        //memset(&str, 0x0, 0x100);
-        //sprintf(str, "<dict ID=\"0\"><key>IOProviderClass</key><string ID=\"1\">IOService</string><key>BSD Name</key><string ID=\"2\">disk0s1s8</string></dict>");
-        
-        unsigned char str[] = {
+	unsigned char str[] = "<dict ID=\"0\"><key>IOProviderClass</key><string ID=\"1\">IOService</string><key>BSD Name</key><string ID=\"2\">" ROOTDEV "</string></dict>";
+        /*unsigned char str[] = {
             0x3c, 0x64, 0x69, 0x63, 0x74, 0x20, 0x49, 0x44, 0x3d, 0x22, 0x30, 0x22,
             0x3e, 0x3c, 0x6b, 0x65, 0x79, 0x3e, 0x49, 0x4f, 0x50, 0x72, 0x6f, 0x76,
             0x69, 0x64, 0x65, 0x72, 0x43, 0x6c, 0x61, 0x73, 0x73, 0x3c, 0x2f, 0x6b,
@@ -80,13 +119,13 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
             0x6e, 0x67, 0x20, 0x49, 0x44, 0x3d, 0x22, 0x32, 0x22, 0x3e, 0x64, 0x69,
             0x73, 0x6b, 0x30, 0x73, 0x31, 0x73, 0x38, 0x3c, 0x2f, 0x73, 0x74, 0x72,
             0x69, 0x6e, 0x67, 0x3e, 0x3c, 0x2f, 0x64, 0x69, 0x63, 0x74, 0x3e
-        };
-        unsigned int txt_len = 131;
+        };*/
+        unsigned int txt_len = strlen(str);
 
         
         memset(val, 0x0, 0x100);
         memcpy(val, str, txt_len);
-        iprintf("set new entry: %016llx: disk0s1s8\n", (uint64_t)val);
+        iprintf("set new entry: %016llx: " ROOTDEV "\n", (uint64_t)val);
     }
     
     
@@ -122,7 +161,7 @@ int iboot_func_init(void)
         uint64_t iboot_base = 0x1800b0000;
         
         void* idata = (void *)(0x1800b0000);
-        size_t isize = *(uint64_t *)(idata + 0x308) - iboot_base;
+        my_size_t isize = *(uint64_t *)(idata + 0x308) - iboot_base;
         
         uint64_t* offsetBase = (uint64_t*)(0x800700000 + 0x40);
         

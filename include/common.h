@@ -3,8 +3,17 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "../printf.h"
 
-typedef uint64_t size_t;
+typedef uint64_t my_size_t;
+
+#ifndef ROOTDEV
+#ifdef IOS16
+#define ROOTDEV "disk1s8"
+#else
+#define ROOTDEV "disk0s1s8"
+#endif
+#endif
 
 #ifndef NULL
 #define NULL ((void*)0)
@@ -12,8 +21,8 @@ typedef uint64_t size_t;
 
 struct cmd_arg {
     bool b;
-    size_t u;
-    size_t h;
+    my_size_t u;
+    my_size_t h;
     char *str;
 };
 
@@ -69,6 +78,8 @@ typedef struct
 extern void* gEntryPoint;
 extern boot_args *gBootArgs;
 extern dt_node_t *gDeviceTree;
+uint64_t gIOBase;
+volatile uint32_t *gTZRegbase;
 
 extern int dt_check(void* mem, uint32_t size, uint32_t* offp);
 extern int dt_parse(dt_node_t* node, int depth, uint32_t* offp, int (*cb_node)(void*, dt_node_t*), void* cbn_arg, int (*cb_prop)(void*, dt_node_t*, int, const char*, void*, uint32_t), void* cbp_arg);
@@ -94,13 +105,26 @@ void iboot_func_load(void);
 
 // libc
 int strcmp(const char *s1, const char *s2);
-size_t strlen(const char * str);
-void *memset(void *s, int c, size_t n);
-void *memmem(const void *haystack, size_t hlen, const void *needle, size_t nlen);
-void *memcpy(void *dst, const void *src, size_t len);
-void *memmove(void *dest, const void *src, size_t n);
+my_size_t strlen(const char * str);
+void *memset(void *s, int c, my_size_t n);
+void *memmem(const void *haystack, my_size_t hlen, const void *needle, my_size_t nlen);
+void *memcpy(void *dst, const void *src, my_size_t len);
+void *memmove(void *dest, const void *src, my_size_t n);
 char *strcpy(char *to, const char *from);
-int strncmp(const char *s1, const char *s2, size_t n);
+int strncmp(const char *s1, const char *s2, my_size_t n);
 char *strchr(const char *p, int ch);
+int isdigit(int c);
+int isalpha(int c);
+int isspace(int c);
+int isupper(int c);
+long atoi(const char* S);
+unsigned long long strtoull(const char *str, char **endptr, int base);
+
+// pongo
+char* command_tokenize(char* str, unsigned int strbufsz);
+
+// command
+void peek(char* addr_str, char* size_str);
+void poke(char* addr_str, char* u64_data);
 
 #endif

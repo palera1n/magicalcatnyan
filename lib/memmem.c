@@ -25,11 +25,11 @@
 #define UCHAR_MAX 255
 
 unsigned char *
-boyermoore_horspool_memmem(const unsigned char* haystack, size_t hlen,
-                           const unsigned char* needle,   size_t nlen)
+boyermoore_horspool_memmem(const unsigned char* haystack, my_size_t hlen,
+                           const unsigned char* needle,   my_size_t nlen)
 {
-    size_t last, scan = 0;
-    size_t bad_char_skip[UCHAR_MAX + 1]; /* Officially called:
+    my_size_t last, scan = 0;
+    my_size_t bad_char_skip[UCHAR_MAX + 1]; /* Officially called:
                                           * bad character shift */
     
     /* Sanity checks on the parameters */
@@ -80,9 +80,9 @@ boyermoore_horspool_memmem(const unsigned char* haystack, size_t hlen,
 }
 
 void *
-memmem(const void *haystack, size_t hlen, const void *needle, size_t nlen)
+memmem(const void *haystack, my_size_t hlen, const void *needle, my_size_t nlen)
 {
-    size_t i, j;
+    my_size_t i, j;
     if (!nlen) {
         return (void *)haystack;
     }
