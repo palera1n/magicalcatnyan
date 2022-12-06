@@ -7,14 +7,6 @@
 
 typedef uint64_t my_size_t;
 
-#ifndef ROOTDEV
-#ifdef IOS16
-#define ROOTDEV "disk1s8"
-#else
-#define ROOTDEV "disk0s1s8"
-#endif
-#endif
-
 #ifndef NULL
 #define NULL ((void*)0)
 #endif
@@ -26,7 +18,8 @@ struct cmd_arg {
     char *str;
 };
 
-#define PAYLOAD_BASE_ADDRESS (0x800F00000) // A11
+#define PAYLOAD_BASE_ADDRESS_T8015 (0x800F00000) // A11
+#define PAYLOAD_BASE_ADDRESS_T8010 (0x800700000) // A10
 
 #define DT_KEY_LEN              0x20
 #define BOOT_LINE_LENGTH_iOS12  0x100
@@ -118,7 +111,9 @@ int isalpha(int c);
 int isspace(int c);
 int isupper(int c);
 long atoi(const char* S);
+char* strcat (char* dest, char* src);
 unsigned long long strtoull(const char *str, char **endptr, int base);
+int puts(const char* str);
 
 // pongo
 char* command_tokenize(char* str, unsigned int strbufsz);

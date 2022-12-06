@@ -39,6 +39,12 @@ _gjumpto:
 _gpanic:
 .quad 0x4343434343434343
 
+// 0x0060
+
+_rootdev:
+.quad 0x4444444444444444
+.quad 0x4444444444444444
+
 nop
 nop
 nop
