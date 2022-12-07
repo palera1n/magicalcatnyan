@@ -119,7 +119,7 @@ uint32_t socnum;
 char soc_name[9] = {};
 
 bool is_16k() {
-    return (socnum == 0x8010) || (socnum == 0x8011) || (socnum == 0x8012) || (socnum == 0x8015);
+    return (socnum == 0x8000) || (socnum == 0x8001) || (socnum == 0x8003) || (socnum == 0x8010) || (socnum == 0x8011) || (socnum == 0x8012) || (socnum == 0x8015);
 }
 
 void flip_video_display() {
