@@ -8,3 +8,5 @@ many codes are missing :p
 　　|　　　  |／   
 　　 ￣￣￣￣   
 
+## building
+run ``make vmacho; make all``
