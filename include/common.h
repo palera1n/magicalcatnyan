@@ -3,12 +3,12 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+typedef uint64_t my_size_t;
+
 #include "drivers/framebuffer/fb.h"
 #include "drivers/tz/tz.h"
 
 #include "../printf.h"
-
-typedef uint64_t my_size_t;
 
 extern uint32_t socnum;
 extern bool screen_is_initialized;

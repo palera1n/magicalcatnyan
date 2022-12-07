@@ -117,6 +117,8 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     
     pmgr_init();
     wdt_disable();
+    tz_setup();
+    tz_command();
 
     {
         uint32_t len = 0;
@@ -124,8 +126,6 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
         if (!dev) panic("invalid devicetree: no device!");
         uint32_t* val = dt_prop(dev, "root-matching", &len);
         if (!val) panic("invalid devicetree: no prop!");
-        tz_setup();
-        tz_command();
 	    char str[200] = "<dict ID=\"0\"><key>IOProviderClass</key><string ID=\"1\">IOService</string><key>BSD Name</key><string ID=\"2\">";
         strcat(str, rootdev);
         strcat(str, "</string></dict>");
