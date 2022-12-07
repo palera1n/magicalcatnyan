@@ -26,7 +26,17 @@ struct cmd_arg {
 
 #define PAYLOAD_BASE_ADDRESS_T8015 (0x800F00000) // A11
 #define PAYLOAD_BASE_ADDRESS_T8010 (0x800700000) // A10
-#define PAYLOAD_BASE_ADDRESS_A9 (0x800700000) // A9
+#define PAYLOAD_BASE_ADDRESS_S8000 (0x800700000) // A9
+
+#if defined(PAYLOAD_T8015)
+#define PAYLOAD_BASE_ADDRESS PAYLOAD_BASE_ADDRESS_T8015
+#elif defined(PAYLOAD_T8010)
+#define PAYLOAD_BASE_ADDRESS PAYLOAD_BASE_ADDRESS_T8010
+#elif defined(PAYLOAD_S8000)
+#define PAYLOAD_BASE_ADDRESS PAYLOAD_BASE_ADDRESS_S8000
+#else
+#error "unsupported platform"
+#endif
 
 #define DT_KEY_LEN              0x20
 #define BOOT_LINE_LENGTH_iOS12  0x100
@@ -36,7 +46,7 @@ bool is_16k();
 
 struct Boot_Video {
     unsigned long    v_baseAddr;    /* Base address of video memory */
-    unsigned long    v_display;     /* Display Code (if Applicable */
+    unsigned long    v_display;     /* Display Code (if Applicable) */
     unsigned long    v_rowBytes;    /* Number of bytes per pixel row */
     unsigned long    v_width;       /* Width */
     unsigned long    v_height;      /* Height */
@@ -86,6 +96,9 @@ extern volatile uint32_t *gTZRegbase;
 extern uint64_t gInterruptBase;
 extern uint64_t gPMGRBase;
 extern uint64_t gWDTBase;
+
+extern int iboot_func_init(void);
+extern void iboot_func_load(void);
 
 extern int dt_check(void* mem, uint32_t size, uint32_t* offp);
 extern int dt_parse(dt_node_t* node, int depth, uint32_t* offp, int (*cb_node)(void*, dt_node_t*), void* cbn_arg, int (*cb_prop)(void*, dt_node_t*, int, const char*, void*, uint32_t), void* cbp_arg);

@@ -38,17 +38,17 @@ SOURCE	=	\
 .PHONY: all
 
 all:
-	$(CC) entry.S payload.c -DPAYLOAD_T8015 $(SOURCE) $(CFLAGS) -o $(OBJ).o
-	./vmacho -fM 0x80000 $(OBJ).o $(OBJ).bin
-	$(CC) entry.S payload_t8010.c -DPAYLOAD_T8010 $(SOURCE) $(CFLAGS) -o $(OBJ)_t8010.o
+	$(CC) entry.S payload.c drivers/iboot/t8015.c -DPAYLOAD_T8015 $(SOURCE) $(CFLAGS) -o $(OBJ)_t8015.o
+	./vmacho -fM 0x80000 $(OBJ)_t8015.o $(OBJ)_t8015.bin
+	$(CC) entry.S payload.c drivers/iboot/t8010.c -DPAYLOAD_T8010 $(SOURCE) $(CFLAGS) -o $(OBJ)_t8010.o
 	./vmacho -fM 0x80000 $(OBJ)_t8010.o $(OBJ)_t8010.bin
-	$(CC) entry.S payload_a9.c -DPAYLOAD_A9 $(SOURCE) $(CFLAGS) -o $(OBJ)_a9.o
-	./vmacho -fM 0x80000 $(OBJ)_a9.o $(OBJ)_a9.bin
+	$(CC) entry.S payload.c drivers/iboot/s8000.c -DPAYLOAD_S8000 $(SOURCE) $(CFLAGS) -o $(OBJ)_s8000.o
+	./vmacho -fM 0x80000 $(OBJ)_s8000.o $(OBJ)_s8000.bin
 	
 clean:
 	-$(RM) $(OBJ).o
 	-$(RM) $(OBJ).bin
 	-$(RM) $(OBJ)_t8010.o
 	-$(RM) $(OBJ)_t8010.bin
-	-$(RM) $(OBJ)_a9.o
-	-$(RM) $(OBJ)_a9.bin
+	-$(RM) $(OBJ)_s8000.o
+	-$(RM) $(OBJ)_s8000.bin

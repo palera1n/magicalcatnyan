@@ -6,10 +6,10 @@
 #include <common.h>
 #include <offsetfinder.h>
 
-char* rootdev = (char*)(PAYLOAD_BASE_ADDRESS_T8015 + 0x60);
-uint8_t* invert_fb = (uint8_t*)(PAYLOAD_BASE_ADDRESS_T8015 + 0x70);
-uint8_t* xargs_set = (uint8_t*)(PAYLOAD_BASE_ADDRESS_T8015 + 0x71);
-char* CommandLine = (char*)(PAYLOAD_BASE_ADDRESS_T8015 + 0x72);
+char* rootdev = (char*)(PAYLOAD_BASE_ADDRESS + 0x60);
+uint8_t* invert_fb = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x70);
+uint8_t* xargs_set = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x71);
+char* CommandLine = (char*)(PAYLOAD_BASE_ADDRESS + 0x72);
 char CommandLine_Temp[BOOT_LINE_LENGTH_iOS13];
 uint16_t args_len_already;
 
@@ -28,7 +28,7 @@ static void usage(void)
 
 int payload(int argc, struct cmd_arg *args)
 {
-    if(*(uint32_t*)PAYLOAD_BASE_ADDRESS_T8015 == 0)
+    if(*(uint32_t*)PAYLOAD_BASE_ADDRESS == 0)
     {
         if(iboot_func_init()) return -1;
         printf("-------- relocated --------\n");
@@ -160,7 +160,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     screen_puts("==================================");
     screen_puts("");
     screen_puts("Hello from magicalcatnyan!");
-    screen_puts("Originally written by dora2-iOS, with modifications from Nick Chan");
+    screen_puts("Originally written by dora2-iOS, with modifications from palera1n team");
     screen_puts("Also thanks to pongoOS developers!");
     screen_puts("");
     screen_puts("==================================");
@@ -168,6 +168,15 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     
     pmgr_init();
     wdt_disable();
+
+    printf("Booted by: %s\n", (const char*)dt_get_prop("chosen", "firmware-version", NULL));
+#ifdef __clang__
+    printf("Built with: Clang %s\n", __clang_version__);
+#else
+    printf("Built with: GCC %s\n", __VERSION__);
+#endif
+    printf("Ruuning on %x\n", socnum);
+
     tz_setup();
     tz_command();
 
@@ -206,62 +215,6 @@ int jump_hook(void* boot_image, void* boot_args)
     }
     
     return jumpto(boot_image, boot_args);
-}
-
-int iboot_func_init(void)
-{
-    // T8015
-    if(*(uint32_t*)PAYLOAD_BASE_ADDRESS_T8015 == 0)
-    {
-        //memcpy(relocate_addr, load_addr, size)
-        memcpy((void*)PAYLOAD_BASE_ADDRESS_T8015, (void*)0x801000000, 0x80000);
-        
-        uint64_t iboot_base = 0x18001c000;
-        
-        void* idata = (void *)(0x18001c000);
-        size_t isize = *(uint64_t *)(idata + 0x308) - iboot_base;
-        
-        uint64_t* offsetBase = (uint64_t*)(PAYLOAD_BASE_ADDRESS_T8015 + 0x40);
-        
-        // OF
-        uint64_t _printf = find_printf(iboot_base, idata, isize);
-        if(!_printf)
-            return -1;
-        _printf += iboot_base;
-        
-        uint64_t _mount_and_boot_system = find_mount_and_boot_system(iboot_base, idata, isize);
-        if(!_mount_and_boot_system)
-            return -1;
-        _mount_and_boot_system += iboot_base;
-        
-        uint64_t _jumpto_func = find_jumpto_func(iboot_base, idata, isize);
-        if(!_jumpto_func)
-            return -1;
-        _jumpto_func += iboot_base;
-        
-        uint64_t _panic = find_panic(iboot_base, idata, isize);
-        if(!_panic)
-            return -1;
-        _panic += iboot_base;
-        
-        offsetBase[0] = _printf;
-        offsetBase[1] = _mount_and_boot_system;
-        offsetBase[2] = _jumpto_func;
-        offsetBase[3] = _panic;
-    }
-    
-    iboot_func_load();
-    
-    return 0;
-}
-
-void iboot_func_load(void)
-{
-    uint64_t* offsetBase = (uint64_t*)(PAYLOAD_BASE_ADDRESS_T8015 + 0x40);
-    iprintf = (printf_t)offsetBase[0];
-    fsboot  = (fsboot_t)offsetBase[1];
-    jumpto  = (jumpto_t)offsetBase[2];
-    real_panic   = (panic_t)offsetBase[3];
 }
 
 int main(void)
