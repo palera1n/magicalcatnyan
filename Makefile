@@ -42,9 +42,13 @@ all:
 	./vmacho -fM 0x80000 $(OBJ).o $(OBJ).bin
 	$(CC) entry.S payload_t8010.c -DPAYLOAD_T8010 $(SOURCE) $(CFLAGS) -o $(OBJ)_t8010.o
 	./vmacho -fM 0x80000 $(OBJ)_t8010.o $(OBJ)_t8010.bin
+	$(CC) entry.S payload_a9.c -DPAYLOAD_A9 $(SOURCE) $(CFLAGS) -o $(OBJ)_a9.o
+	./vmacho -fM 0x80000 $(OBJ)_a9.o $(OBJ)_a9.bin
 	
 clean:
 	-$(RM) $(OBJ).o
 	-$(RM) $(OBJ).bin
 	-$(RM) $(OBJ)_t8010.o
 	-$(RM) $(OBJ)_t8010.bin
+	-$(RM) $(OBJ)_a9.o
+	-$(RM) $(OBJ)_a9.bin

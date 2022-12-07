@@ -6,3 +6,5 @@ vmacho
 txt
 *.bin
 *.o
+boot
+a9rwx.s

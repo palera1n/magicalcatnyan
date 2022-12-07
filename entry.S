@@ -46,10 +46,10 @@ _rootdev:
 .quad 0x4444444444444444
 
 // 0x0070 invert_fb
-.BYTE 0x45
+.byte 0x45
 
 // 0x0071 xargs_set
-.BYTE 0x46
+.byte 0x46
 
 // 0x0072 CommandLine
 .quad 0x4747474747474747
