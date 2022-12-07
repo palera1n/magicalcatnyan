@@ -1,6 +1,8 @@
 CC = xcrun -sdk iphoneos clang
 
 SRC_ROOT = $(shell pwd)
+SUBDIRS = kernel lib drivers
+
 OBJCOPY	= /opt/homebrew/opt/binutils/bin/gobjcopy
 DRIVERS = tz plat dt recfg framebuffer
 
@@ -10,8 +12,6 @@ LDFLAGS	=  -Wl,-preload -Wl,-no_uuid -Wl,-e,start -Wl,-order_file,sym_order.txt 
 
 OBJ = payload
 
-TOP_OBJECTS = lowlevel.o offsetfinder.o printf.o command.o
-
 OBJECTS	=	\
 			drivers/dt/dtree.o \
 			drivers/dt/dtree_getprop.o \
@@ -19,6 +19,11 @@ OBJECTS	=	\
 			drivers/framebuffer/fb.o \
 			drivers/recfg/recfg.o \
 			drivers/recfg/recfg_soc.o \
+			kernel/command.o \
+			kernel/lowlevel.o \
+			kernel/printf.o \
+			kernel/offsetfinder.o \
+			kernel/entry.o \
 			lib/memset.o \
 			lib/memmem.o \
 			lib/memmove.o \
@@ -46,14 +51,11 @@ payload: $(OBJ)_s8000.bin $(OBJ)_t8010.bin $(OBJ)_t8015.bin
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
 
-drivers:
-	$(MAKE) -C drivers
+$(SUBDIRS):
+	$(MAKE) -C "$@"
 
-lib:
-	$(MAKE) -C lib
-
-payload_%.o: drivers lib $(TOP_OBJECTS)
-	$(CC) entry.S payload.c drivers/plat/$*.o -DPAYLOAD_$* -DBUILDING_PAYLOAD $(OBJECTS) $(TOP_OBJECTS) $(CFLAGS) $(LDFLAGS) -o $(OBJ)_$*.o
+payload_%.o: $(SUBDIRS)
+	$(CC) payload.c drivers/plat/$*.o -DPAYLOAD_$* -DBUILDING_PAYLOAD $(OBJECTS) $(CFLAGS) $(LDFLAGS) -o $(OBJ)_$*.o
 
 payload_%.bin: payload_%.o
 	./vmacho -fM 0x80000 $(OBJ)_$*.o $(OBJ)_$*.bin
@@ -62,4 +64,4 @@ clean:
 	find . -name '*.bin' -type f -delete
 	find . -name '*.o' -type f -delete
 
-.PHONY: all clean drivers lib payload
+.PHONY: all clean payload $(SUBDIRS)
