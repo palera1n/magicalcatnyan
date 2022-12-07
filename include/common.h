@@ -105,7 +105,8 @@ jumpto_t jumpto;
 typedef void (*fsboot_t)(void);
 fsboot_t fsboot;
 typedef int (*panic_t)(const char *format, ...);
-panic_t panic;
+panic_t real_panic;
+int panic(const char* panic_string);
 
 // main
 int iboot_func_init(void);
