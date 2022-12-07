@@ -12,6 +12,7 @@ SOURCE	=	\
 			offsetfinder.c \
 			printf.c \
 			command.c \
+			lowlevel.c \
 			drivers/dt/dtree.c \
 			drivers/dt/dtree_getprop.c \
 			drivers/tz/tz.c \

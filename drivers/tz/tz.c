@@ -26,6 +26,8 @@
  */
 #include <common.h>
 
+volatile uint32_t* gTZRegbase;
+
 void tz_command(void) {
     uint32_t raw[4];
     uint32_t shift;

@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include "drivers/framebuffer/fb.h"
 #include "drivers/tz/tz.h"
+
 #include "../printf.h"
 
 typedef uint64_t my_size_t;
@@ -80,7 +81,10 @@ extern boot_args *gBootArgs;
 extern dt_node_t *gDeviceTree;
 extern uint32_t* gFramebuffer;
 uint64_t gIOBase;
-volatile uint32_t *gTZRegbase;
+extern volatile uint32_t *gTZRegbase;
+extern uint64_t gInterruptBase;
+extern uint64_t gPMGRBase;
+extern uint64_t gWDTBase;
 
 extern int dt_check(void* mem, uint32_t size, uint32_t* offp);
 extern int dt_parse(dt_node_t* node, int depth, uint32_t* offp, int (*cb_node)(void*, dt_node_t*), void* cbn_arg, int (*cb_prop)(void*, dt_node_t*, int, const char*, void*, uint32_t), void* cbp_arg);
@@ -88,6 +92,9 @@ extern dt_node_t* dt_find(dt_node_t* node, const char* name);
 extern void* dt_prop(dt_node_t* node, const char* key, uint32_t* lenp);
 extern void* dt_get_prop(const char* device, const char* prop, uint32_t* size);
 extern struct memmap* dt_alloc_memmap(dt_node_t* node, const char* name);
+extern uint64_t dt_get_u64_prop(const char* device, const char* prop);
+extern uint32_t dt_get_u32_prop(const char* device, const char* prop);
+extern uint64_t dt_get_u64_prop_i(const char* device, const char* prop, uint32_t idx);
 
 
 // iboot
@@ -126,6 +133,9 @@ char *strncpy(char *dest, const char *src, my_size_t n);
 
 // pongo
 char* command_tokenize(char* str, unsigned int strbufsz);
+void wdt_disable();
+void wdt_enable();
+void pmgr_init();
 
 // command
 void peek(char* addr_str, char* size_str);

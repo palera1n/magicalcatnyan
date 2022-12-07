@@ -8,9 +8,6 @@
 
 char* rootdev = (char*)(PAYLOAD_BASE_ADDRESS_T8015 + 0x60);
 
-extern uint64_t dt_get_u64_prop(const char* device, const char* prop);
-extern uint64_t dt_get_u64_prop_i(const char* device, const char* prop, uint32_t idx);
-
 static void usage(void)
 {
     printf("usage: %s <cmd>\n", "go");
@@ -109,18 +106,18 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     screen_puts("");
     screen_puts("");
     screen_puts("");
-    screen_puts("");
-    screen_puts("");
-    screen_puts("");
-    screen_puts("");
     screen_puts("==================================");
     screen_puts("");
     screen_puts("Hello from magicalcatnyan!");
     screen_puts("Originally written by dora2-iOS, with modifications from Nick Chan");
+    screen_puts("Also thanks to pongoOS developers!");
     screen_puts("");
     screen_puts("==================================");
     screen_mark_banner();
     
+    pmgr_init();
+    wdt_disable();
+
     {
         uint32_t len = 0;
         dt_node_t* dev = dt_find(gDeviceTree, "chosen");

@@ -1,5 +1,5 @@
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "printf.h"
 #include "drivers/tz/tz.h"
@@ -110,10 +110,6 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     screen_puts("");
     screen_puts("");
     screen_puts("");
-    screen_puts("");
-    screen_puts("");
-    screen_puts("");
-    screen_puts("");
     screen_puts("==================================");
     screen_puts("");
     screen_puts("Hello from magicalcatnyan!");
@@ -121,6 +117,9 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     screen_puts("");
     screen_puts("==================================");
     screen_mark_banner();
+
+    pmgr_init();
+    wdt_disable();
     
     {
         uint32_t len = 0;
