@@ -1,3 +1,4 @@
+MAC_CC = clang
 CC = xcrun -sdk iphoneos clang
 
 SRC_ROOT = $(shell pwd)
@@ -44,11 +45,12 @@ OBJECTS	= \
 
 export DRIVERS CC CFLAGS
 
-all: payload dl-vmacho
+all: payload
 
-dl-vmacho:
+vmacho:
 	curl -LO https://raw.githubusercontent.com/Siguza/misc/master/vmacho.c
-	$(CC) -o vmacho vmacho.c -O3
+	$(MAC_CC) -o vmacho vmacho.c -O3
+	$(RM) vmacho.c
 
 payload: $(OBJ)_s8000.bin $(OBJ)_t8010.bin $(OBJ)_t8015.bin
 
@@ -68,4 +70,4 @@ clean:
 	find . -name '*.bin' -type f -delete
 	find . -name '*.o' -type f -delete
 
-.PHONY: all clean payload $(SUBDIRS)
+.PHONY: all clean payload vmacho $(SUBDIRS)
