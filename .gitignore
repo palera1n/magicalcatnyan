@@ -2,8 +2,8 @@
 .DS_Store
 .irecovery
 irecovery
-lib/vmacho.c
 vmacho
+vmacho.c
 txt
 *.bin
 *.o
