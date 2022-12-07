@@ -7,6 +7,8 @@ typedef uint64_t my_size_t;
 
 #include "drivers/framebuffer/fb.h"
 #include "drivers/tz/tz.h"
+#include "drivers/recfg/recfg.h"
+#include "drivers/recfg/recfg_soc.h"
 
 #include "../printf.h"
 

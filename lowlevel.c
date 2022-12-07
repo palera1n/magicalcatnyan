@@ -55,6 +55,7 @@ int panic(const char* panic_string) {
         screen_write("panic: ");
         screen_puts(panic_string);
     }
+    while(1) {};
     return real_panic(panic_string);
 }
 

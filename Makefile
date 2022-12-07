@@ -17,6 +17,8 @@ SOURCE	=	\
 			drivers/dt/dtree_getprop.c \
 			drivers/tz/tz.c \
 			drivers/framebuffer/fb.c \
+			drivers/recfg/recfg.c \
+			drivers/recfg/recfg_soc.c \
 			lib/memset.c \
 			lib/memmem.c \
 			lib/memmove.c \
