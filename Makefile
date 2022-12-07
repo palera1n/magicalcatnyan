@@ -40,14 +40,17 @@ OBJECTS	= \
 		lib/strtoull.o \
 		lib/strcat.o \
 		lib/puts.o \
-		lib/bzero.o \
-		lib/vmacho.o
+		lib/bzero.o
 
 export DRIVERS CC CFLAGS
 
-all: payload
+all: payload dl-vmacho
 
-payload: $(OBJ)_s8000.bin $(OBJ)_t8010.bin $(OBJ)_t8015.bin 
+dl-vmacho:
+	curl -LO https://raw.githubusercontent.com/Siguza/misc/master/vmacho.c
+	$(CC) -o vmacho vmacho.c -O3
+
+payload: $(OBJ)_s8000.bin $(OBJ)_t8010.bin $(OBJ)_t8015.bin
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
