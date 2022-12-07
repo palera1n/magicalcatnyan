@@ -9,7 +9,8 @@
 char* rootdev = (char*)(PAYLOAD_BASE_ADDRESS + 0x60);
 uint8_t* invert_fb = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x70);
 uint8_t* xargs_set = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x71);
-char* CommandLine = (char*)(PAYLOAD_BASE_ADDRESS + 0x72);
+uint8_t* xfb_state = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x72);
+char* CommandLine = (char*)(PAYLOAD_BASE_ADDRESS + 0x73);
 char CommandLine_Temp[BOOT_LINE_LENGTH_iOS13];
 uint16_t args_len_already;
 
@@ -19,6 +20,7 @@ static void usage(void)
     printf("cmd:\n");
     printf("\thelp\t\t\t: print this help\n");
     printf("\tboot <rootdev>\t\t: boot xnu\n");
+    printf("\txfb\t\t\t: flip/unflip xnu framebuffer state\n");
     printf("\txargs [boot cmdline]\t: set or clear xnu boot command line\n");
     printf("\tdefault_xargs \t\t: use the default xnu boot command line\n");
     printf("\tfbinvert\t\t: invert boot framebuffer\n");
@@ -34,6 +36,7 @@ int payload(int argc, struct cmd_arg *args)
         printf("-------- relocated --------\n");
         *invert_fb = 0;
         *xargs_set = 0;
+        *xfb_state = 0;
         return 0;
     }
     else
@@ -47,11 +50,16 @@ int payload(int argc, struct cmd_arg *args)
         if(!strcmp(args[1].str, "fbinvert")) {
             if (*invert_fb == 1) *invert_fb = 0;
             else *invert_fb = 1;
-            printf("invert_fb = %llu\n", *invert_fb);
+            printf("invert_fb = %u\n", *invert_fb);
             return 0;
         } else if (!strcmp(args[1].str, "default_xargs")) {
             *xargs_set = 0;
             printf("using default xnu boot cmdline\n");
+            return 0;
+        } else if(!strcmp(args[1].str, "xfb")) {
+            if (*xfb_state == 1) *xfb_state = 0;
+            else *xfb_state = 1;
+            printf("xfb_state = %u\n", *xfb_state);
             return 0;
         }
     } else if (argc == 3) {
@@ -112,6 +120,15 @@ char soc_name[9] = {};
 
 bool is_16k() {
     return (socnum == 0x8010) || (socnum == 0x8011) || (socnum == 0x8012) || (socnum == 0x8015);
+}
+
+void flip_video_display() {
+    gBootArgs->Video.v_display = !gBootArgs->Video.v_display;
+    if (!gBootArgs->Video.v_display) {
+        printf("xnu now owns the framebuffer\n");
+    } else {
+        printf("xnu no longer owns the framebuffer\n");
+    }
 }
 
 void payload_entry(uint64_t *kernel_args, void *entryp)
@@ -176,6 +193,32 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     printf("Built with: GCC %s\n", __VERSION__);
 #endif
     printf("Ruuning on %x\n", socnum);
+    printf("gBootArgs:\n"
+            "\tRevision: 0x%x\n"
+            "\tVersion: 0x%x\n"
+            "\tvirtBase: 0x%llx\n"
+            "\tphysBase 0x%llx\n"
+            "\tmemSize: 0x%llx\n"
+            "\ttopOfKernelData: 0x%llx\n"
+            "\tmachineType: 0x%x\n"
+            "\tdeviceTreeP: 0x%llx\n"
+            "\tdeviceTreeLength: 0x%x\n"
+            "\tCommandLine: %s\n"
+            "\tbootFlags: %llx\n"
+            "\tmemSizeActual: %llx\n",
+            gBootArgs->Revision,
+            gBootArgs->Version,
+            gBootArgs->virtBase,
+            gBootArgs->physBase,
+            gBootArgs->memSize,
+            gBootArgs->topOfKernelData,
+            gBootArgs->machineType,
+            (uint64_t)gBootArgs->deviceTreeP,
+            gBootArgs->deviceTreeLength,
+            gBootArgs->CommandLine,
+            gBootArgs->bootFlags,
+            gBootArgs->memSizeActual
+            );
 
     tz_setup();
     tz_command();
@@ -198,6 +241,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
         printf("set new entry: %016llx: %s \n", (uint64_t)val, rootdev);
     }
     if (*xargs_set == 1) strcpy(gBootArgs->CommandLine, CommandLine);
+    if (*xfb_state == 1) flip_video_display();
     printf("xnu boot arg cmdline: [%s]\n", gBootArgs->CommandLine);
     printf("-------- bye payload --------\n");
     

@@ -72,28 +72,14 @@ void tz0_set(char* base_str, char *end_str) {
 
 void tz_lockdown(void) {
     bool have_tz0, have_tz1;
-    if(0)
-    {
-        have_tz0 = (gTZRegbase[2] & 0xffff) != 0;
-        have_tz1 = (gTZRegbase[3] & 0xffff) != 0;
-    }
-    else
-    {
-        have_tz0 = gTZRegbase[0] != 0;
-        have_tz1 = gTZRegbase[2] != 0;
-    }
+    have_tz0 = gTZRegbase[0] != 0;
+    have_tz1 = gTZRegbase[2] != 0;
     if(have_tz0) gTZRegbase[4] = 1;
     if(have_tz1) gTZRegbase[5] = 1;
 }
 
 bool tz_blackbird(void) {
-    if(0)
-    {
-        printf("Not supported on this SoC\n");
-        return false;
-    }
-    if(gTZRegbase[4])
-    {
+    if(gTZRegbase[4]) {
         printf("Registers are locked\n");
         return false;
     }
@@ -116,29 +102,13 @@ bool tz0_is_locked(void)
     return gTZRegbase[4] != 0;
 }
 
-uint64_t tz0_base(void)
-{
-    if(0)
-    {
-        return ((uint64_t)(gTZRegbase[2] & 0xffff) << 20) + 0x800000000ULL;
-    }
-    else
-    {
-        return ((uint64_t)gTZRegbase[0] << 12) + 0x800000000ULL;
-    }
+uint64_t tz0_base(void) {
+    return ((uint64_t)gTZRegbase[0] << 12) + 0x800000000ULL;
 }
 
 uint64_t tz0_size(void)
 {
-    if(0)
-    {
-        uint32_t reg = gTZRegbase[2];
-        return (uint64_t)(((reg >> 16) & 0xffff) - (reg & 0xffff) + 1) << 20;
-    }
-    else
-    {
-        return (uint64_t)(gTZRegbase[1] - gTZRegbase[0] + 1) << 12;
-    }
+    return (uint64_t)(gTZRegbase[1] - gTZRegbase[0] + 1) << 12;
 }
 
 void tz_setup(void) {
