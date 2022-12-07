@@ -33,7 +33,6 @@ int payload(int argc, struct cmd_arg *args)
         if(iboot_func_init()) return -1;
     }
     
-    gIOBase = 0;
     iprintf("-------- payload start --------\n");
 
     if (argc == 3) {
