@@ -12,11 +12,11 @@ char* rootdev = (char*)(PAYLOAD_BASE_ADDRESS_T8010 + 0x60);
 
 static void usage(void)
 {
-    iprintf("usage: %s <cmd>\n", "go");
-    iprintf("cmd:\n");
-    iprintf("\tboot\t\t\t: boot xnu\n");
-    iprintf("\tpeek <addr> <size>\t: dump memory\n");
-    iprintf("\tpoke <addr> <uint64>\t: write <uint64> to <addr>\n");
+    printf("usage: %s <cmd>\n", "go");
+    printf("cmd:\n");
+    printf("\tboot\t\t\t: boot xnu\n");
+    printf("\tpeek <addr> <size>\t: dump memory\n");
+    printf("\tpoke <addr> <uint64>\t: write <uint64> to <addr>\n");
 }
 
 
@@ -25,7 +25,7 @@ int payload(int argc, struct cmd_arg *args)
     if(*(uint32_t*)PAYLOAD_BASE_ADDRESS_T8010 == 0)
     {
         if(iboot_func_init()) return -1;
-        iprintf("-------- relocated --------\n");
+        printf("-------- relocated --------\n");
         return 0;
     }
     else
@@ -33,7 +33,7 @@ int payload(int argc, struct cmd_arg *args)
         if(iboot_func_init()) return -1;
     }
     
-    iprintf("-------- payload start --------\n");
+    printf("-------- payload start --------\n");
     
     if (argc == 3) {
         if(!strcmp(args[1].str, "boot")) {
@@ -54,7 +54,7 @@ int payload(int argc, struct cmd_arg *args)
             return 0;
         }
     }
-    iprintf("unknown command/ bad arg count\n");
+    printf("unknown command/ bad arg count\n");
     usage();
     return 0;
 }
@@ -146,7 +146,7 @@ int jump_hook(void* boot_image, void* boot_args)
 {
     iboot_func_load();
     
-    iprintf("-------- hello payload --------\n");
+    printf("-------- hello payload --------\n");
     
     if (*(uint8_t*)(boot_args + 8 + 7)) {
         // kernel

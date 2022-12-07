@@ -229,12 +229,12 @@ void screen_init() {
         fbsize = (fbsize + fboff + 0xfffULL) & ~0xfffULL;
     }
     // map_range(0xfb0000000ULL, fbbase - fboff, fbsize, 3, 1, true);
-    gFramebuffer = (uint32_t*)(fbbase - fboff + fboff);
+    gFramebuffer = (uint32_t*)(fbbase);
     for (uint16_t i = 0; i < 0x1000; i++) {
         *(gFramebuffer + i) = 0x60;
     }
     // FIXME
-    gFramebufferCopy = (uint32_t*)0x820000000;
+    gFramebufferCopy = (uint32_t*)(gBootArgs->topOfKernelData + 1);
 
     height &= 0xfff0;
     scale_factor = 2;
