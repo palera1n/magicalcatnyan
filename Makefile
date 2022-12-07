@@ -43,7 +43,7 @@ OBJECTS	= \
 		lib/bzero.o \
 		lib/vmacho.o
 
-@export DRIVERS CC CFLAGS
+export DRIVERS CC CFLAGS
 
 all: payload
 
