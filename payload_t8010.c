@@ -8,12 +8,19 @@
 
 char* rootdev = (char*)(PAYLOAD_BASE_ADDRESS_T8010 + 0x60);
 uint8_t* invert_fb = (uint8_t*)(PAYLOAD_BASE_ADDRESS_T8015 + 0x70);
+uint8_t* xargs_set = (uint8_t*)(PAYLOAD_BASE_ADDRESS_T8015 + 0x71);
+char* CommandLine = (char*)(PAYLOAD_BASE_ADDRESS_T8015 + 0x72);
+char CommandLine_Temp[BOOT_LINE_LENGTH_iOS13];
+uint16_t args_len_already;
 
 static void usage(void)
 {
     printf("usage: %s <cmd>\n", "go");
     printf("cmd:\n");
-    printf("\tboot\t\t\t: boot xnu\n");
+    printf("\thelp\t\t\t: print this help\n");
+    printf("\tboot <rootdev>\t\t: boot xnu\n");
+    printf("\txargs [boot cmdline]\t: set or clear xnu boot command line\n");
+    printf("\tdefault_xargs \t\t: use the default xnu boot command line\n");
     printf("\tfbinvert\t\t: invert boot framebuffer\n");
     printf("\tpeek <addr> <size>\t: dump memory\n");
     printf("\tpoke <addr> <uint64>\t: write <uint64> to <addr>\n");
@@ -27,6 +34,7 @@ int payload(int argc, struct cmd_arg *args)
         if(iboot_func_init()) return -1;
         printf("-------- relocated --------\n");
         *invert_fb = 0;
+        *xargs_set = 0;
         return 0;
     }
     else
@@ -35,16 +43,20 @@ int payload(int argc, struct cmd_arg *args)
     }
     
     printf("-------- payload start --------\n");
-    
+
     if (argc == 2) {
         if(!strcmp(args[1].str, "fbinvert")) {
             if (*invert_fb == 1) *invert_fb = 0;
             else *invert_fb = 1;
             printf("invert_fb = %llu\n", *invert_fb);
             return 0;
+        } else if (!strcmp(args[1].str, "default_xargs")) {
+            *xargs_set = 0;
+            printf("using default xnu boot cmdline\n");
+            return 0;
         }
     } else if (argc == 3) {
-        if(!strcmp(args[1].str, "boot")) {
+        if (!strcmp(args[1].str, "boot")) {
             if (strlen(args[2].str) > 19) {
                 puts("rootdev too long");
                 return -1;
@@ -62,11 +74,34 @@ int payload(int argc, struct cmd_arg *args)
             return 0;
         }
     }
-    printf("unknown command/ bad arg count\n");
+
+    if (argc > 1 && (!strcmp(args[1].str, "xargs"))) {
+        args_len_already = 1; // terminating NULL byte
+        *CommandLine = '\0';
+        for (uint16_t i = 2; i < argc; i++) {
+            args_len_already += (strlen(args[i].str) + 1); 
+            if (args_len_already > BOOT_LINE_LENGTH_iOS13) {
+                printf("max boot arg length %d excceed.\n", BOOT_LINE_LENGTH_iOS13);
+                return -1;
+            }
+            strcat(CommandLine_Temp, args[i].str);
+            if ((i + 1) != argc) {
+                strcat(CommandLine_Temp, " ");
+            }
+        }
+        strcpy(CommandLine, CommandLine_Temp);
+        *xargs_set = 1;
+        if (argc <= 2) printf("cleared xnu boot arg cmdline, use default_xargs to use the default ones\n");
+        printf("set xnu boot arg cmdline to [%s]\n", CommandLine);
+        return 0;
+    }
+
+    if (argc == 1 || (argc > 2 && strcmp(args[1].str, "help"))) { 
+        printf("unknown command/ bad arg count\n");
+    }
     usage();
     return 0;
 }
-
 
 boot_args *gBootArgs;
 void *gEntryPoint;
@@ -150,6 +185,8 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
         memcpy(val, str, txt_len);
         printf("set new entry: %016llx: %s \n", (uint64_t)val, rootdev);
     }
+    if (*xargs_set == 1) strcpy(gBootArgs->CommandLine, CommandLine);
+    printf("xnu boot arg cmdline: [%s]\n", gBootArgs->CommandLine);
     printf("-------- bye payload --------\n");
     
 }
