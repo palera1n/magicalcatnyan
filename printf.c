@@ -32,6 +32,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "common.h"
 
 #include "printf.h"
 
@@ -123,6 +124,9 @@ extern printf_t iprintf;
 // iprintf wrapper
 void _putchar(char character)
 {
+  if (screen_is_initialized == true) {
+    screen_putc(character);
+  }
   char s[2] = {character};
   iprintf(s);
 }

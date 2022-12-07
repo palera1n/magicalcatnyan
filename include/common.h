@@ -3,9 +3,14 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "drivers/framebuffer/fb.h"
+#include "drivers/tz/tz.h"
 #include "../printf.h"
 
 typedef uint64_t my_size_t;
+
+extern uint32_t socnum;
+extern bool screen_is_initialized;
 
 #ifndef NULL
 #define NULL ((void*)0)
@@ -24,6 +29,8 @@ struct cmd_arg {
 #define DT_KEY_LEN              0x20
 #define BOOT_LINE_LENGTH_iOS12  0x100
 #define BOOT_LINE_LENGTH_iOS13  0x260
+
+bool is_16k();
 
 struct Boot_Video {
     unsigned long    v_baseAddr;    /* Base address of video memory */
@@ -71,6 +78,7 @@ typedef struct
 extern void* gEntryPoint;
 extern boot_args *gBootArgs;
 extern dt_node_t *gDeviceTree;
+extern uint32_t* gFramebuffer;
 uint64_t gIOBase;
 volatile uint32_t *gTZRegbase;
 
@@ -114,6 +122,7 @@ long atoi(const char* S);
 char* strcat (char* dest, char* src);
 unsigned long long strtoull(const char *str, char **endptr, int base);
 int puts(const char* str);
+char *strncpy(char *dest, const char *src, my_size_t n);
 
 // pongo
 char* command_tokenize(char* str, unsigned int strbufsz);

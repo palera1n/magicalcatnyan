@@ -33,8 +33,9 @@ int payload(int argc, struct cmd_arg *args)
         if(iboot_func_init()) return -1;
     }
     
+    gIOBase = 0;
     iprintf("-------- payload start --------\n");
-    
+
     if (argc == 3) {
         if(!strcmp(args[1].str, "boot")) {
             if (strlen(args[2].str) > 19) {
@@ -63,6 +64,13 @@ int payload(int argc, struct cmd_arg *args)
 boot_args *gBootArgs;
 void *gEntryPoint;
 dt_node_t *gDeviceTree;
+char* gDevType;
+uint32_t socnum;
+char soc_name[9] = {};
+
+bool is_16k() {
+    return (socnum == 0x8010) || (socnum == 0x8011) || (socnum == 0x8012) || (socnum == 0x8015);
+}
 
 void payload_entry(uint64_t *kernel_args, void *entryp)
 {
@@ -70,6 +78,34 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     gBootArgs = (boot_args*)kernel_args;
     gEntryPoint = entryp;
     gDeviceTree = (void*)((uint64_t)gBootArgs->deviceTreeP - gBootArgs->virtBase + gBootArgs->physBase);
+    gIOBase = dt_get_u64_prop_i("arm-io", "ranges", 1);
+    gDevType = dt_get_prop("arm-io", "device_type", NULL);    
+    size_t len = strlen(gDevType) - 3;
+    len = len < 8 ? len : 8;
+    strncpy(soc_name, gDevType, len);
+    if  (strcmp(soc_name, "s5l8960x") == 0) socnum = 0x8960;
+    else if(strcmp(soc_name, "t7000") == 0) socnum = 0x7000;
+    else if(strcmp(soc_name, "t7001") == 0) socnum = 0x7001;
+    else if(strcmp(soc_name, "s8001") == 0) socnum = 0x8001;
+    else if(strcmp(soc_name, "t8010") == 0) socnum = 0x8010;
+    else if(strcmp(soc_name, "t8011") == 0) socnum = 0x8011;
+    else if(strcmp(soc_name, "t8012") == 0) socnum = 0x8012;
+    else if(strcmp(soc_name, "t8015") == 0) socnum = 0x8015;
+    else if(strcmp(soc_name, "s8000") == 0) {
+        const char *sgx = dt_get_prop("sgx", "compatible", NULL);
+        if(strlen(sgx) > 4 && strcmp(sgx + 4, "s8003") == 0)
+        {
+            socnum = 0x8003;
+            soc_name[4] = '3';
+        }
+        else
+        {
+            socnum = 0x8000;
+        }
+    }
+    // screen_init();
+    // screen_fill(0x41414141);
+    // screen_puts("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
     
     {
         uint32_t len = 0;
@@ -77,11 +113,8 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
         if (!dev) panic("invalid devicetree: no device!");
         uint32_t* val = dt_prop(dev, "root-matching", &len);
         if (!val) panic("invalid devicetree: no prop!");
-
-        gIOBase = dt_get_u64_prop_i("arm-io", "ranges", 1);
         tz_setup();
         tz_command();
-
 	    char str[200] = "<dict ID=\"0\"><key>IOProviderClass</key><string ID=\"1\">IOService</string><key>BSD Name</key><string ID=\"2\">";
         strcat(str, rootdev);
         strcat(str, "</string></dict>");
