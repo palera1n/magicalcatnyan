@@ -193,33 +193,6 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     printf("Built with: GCC %s\n", __VERSION__);
 #endif
     printf("Ruuning on %x\n", socnum);
-    printf("gBootArgs:\n"
-            "\tRevision: 0x%x\n"
-            "\tVersion: 0x%x\n"
-            "\tvirtBase: 0x%llx\n"
-            "\tphysBase 0x%llx\n"
-            "\tmemSize: 0x%llx\n"
-            "\ttopOfKernelData: 0x%llx\n"
-            "\tmachineType: 0x%x\n"
-            "\tdeviceTreeP: 0x%llx\n"
-            "\tdeviceTreeLength: 0x%x\n"
-            "\tCommandLine: %s\n"
-            "\tbootFlags: %llx\n"
-            "\tmemSizeActual: %llx\n",
-            gBootArgs->Revision,
-            gBootArgs->Version,
-            gBootArgs->virtBase,
-            gBootArgs->physBase,
-            gBootArgs->memSize,
-            gBootArgs->topOfKernelData,
-            gBootArgs->machineType,
-            (uint64_t)gBootArgs->deviceTreeP,
-            gBootArgs->deviceTreeLength,
-            gBootArgs->CommandLine,
-            gBootArgs->bootFlags,
-            gBootArgs->memSizeActual
-            );
-
     tz_setup();
     tz_command();
     if (recfg_soc_setup() == 0) {
@@ -243,6 +216,32 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     if (*xargs_set == 1) strcpy(gBootArgs->CommandLine, CommandLine);
     if (*xfb_state == 1) flip_video_display();
     printf("xnu boot arg cmdline: [%s]\n", gBootArgs->CommandLine);
+    printf("gBootArgs:\n"
+        "\tRevision: 0x%x\n"
+        "\tVersion: 0x%x\n"
+        "\tvirtBase: 0x%llx\n"
+        "\tphysBase 0x%llx\n"
+        "\tmemSize: 0x%llx\n"
+        "\ttopOfKernelData: 0x%llx\n"
+        "\tmachineType: 0x%x\n"
+        "\tdeviceTreeP: 0x%llx\n"
+        "\tdeviceTreeLength: 0x%x\n"
+        "\tCommandLine: %s\n"
+        "\tbootFlags: %llx\n"
+        "\tmemSizeActual: %llx\n",
+        gBootArgs->Revision,
+        gBootArgs->Version,
+        gBootArgs->virtBase,
+        gBootArgs->physBase,
+        gBootArgs->memSize,
+        gBootArgs->topOfKernelData,
+        gBootArgs->machineType,
+        (uint64_t)gBootArgs->deviceTreeP,
+        gBootArgs->deviceTreeLength,
+        gBootArgs->CommandLine,
+        gBootArgs->bootFlags,
+        gBootArgs->memSizeActual
+    );
     printf("-------- bye payload --------\n");
     
 }
