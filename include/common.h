@@ -30,14 +30,16 @@ struct cmd_arg {
 #define PAYLOAD_BASE_ADDRESS_T8010 (0x800700000) // A10
 #define PAYLOAD_BASE_ADDRESS_S8000 (0x800700000) // A9
 
-#if defined(PAYLOAD_T8015)
+#if BUILDING_PAYLOAD
+#if defined(PAYLOAD_t8015)
 #define PAYLOAD_BASE_ADDRESS PAYLOAD_BASE_ADDRESS_T8015
-#elif defined(PAYLOAD_T8010)
+#elif defined(PAYLOAD_t8010)
 #define PAYLOAD_BASE_ADDRESS PAYLOAD_BASE_ADDRESS_T8010
-#elif defined(PAYLOAD_S8000)
+#elif defined(PAYLOAD_s8000)
 #define PAYLOAD_BASE_ADDRESS PAYLOAD_BASE_ADDRESS_S8000
 #else
 #error "unsupported platform"
+#endif
 #endif
 
 #define DT_KEY_LEN              0x20
