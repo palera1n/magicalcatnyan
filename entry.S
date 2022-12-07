@@ -46,7 +46,8 @@ _rootdev:
 .quad 0x4444444444444444
 
 // 0x0070
-.quad 0x4545454545454545
+_invert_fb:
+.BYTE 0x45
 
 nop
 nop

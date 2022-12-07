@@ -46,3 +46,4 @@ void screen_clear_row();
 void screen_mark_banner();
 void screen_fill_basecolor();
 void screen_fill(uint32_t color);
+void screen_invert();

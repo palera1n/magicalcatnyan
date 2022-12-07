@@ -6,15 +6,15 @@
 #include <common.h>
 #include <offsetfinder.h>
 
-extern uint64_t dt_get_u64_prop(const char* device, const char* prop);
-extern uint64_t dt_get_u64_prop_i(const char* device, const char* prop, uint32_t idx);
 char* rootdev = (char*)(PAYLOAD_BASE_ADDRESS_T8010 + 0x60);
+uint8_t* invert_fb = (uint8_t*)(PAYLOAD_BASE_ADDRESS_T8015 + 0x70);
 
 static void usage(void)
 {
     printf("usage: %s <cmd>\n", "go");
     printf("cmd:\n");
     printf("\tboot\t\t\t: boot xnu\n");
+    printf("\tfbinvert\t\t: invert boot framebuffer\n");
     printf("\tpeek <addr> <size>\t: dump memory\n");
     printf("\tpoke <addr> <uint64>\t: write <uint64> to <addr>\n");
 }
@@ -26,6 +26,7 @@ int payload(int argc, struct cmd_arg *args)
     {
         if(iboot_func_init()) return -1;
         printf("-------- relocated --------\n");
+        *invert_fb = 0;
         return 0;
     }
     else
@@ -35,7 +36,14 @@ int payload(int argc, struct cmd_arg *args)
     
     printf("-------- payload start --------\n");
     
-    if (argc == 3) {
+    if (argc == 2) {
+        if(!strcmp(args[1].str, "fbinvert")) {
+            if (*invert_fb == 1) *invert_fb = 0;
+            else *invert_fb = 1;
+            printf("invert_fb = %llu\n", *invert_fb);
+            return 0;
+        }
+    } else if (argc == 3) {
         if(!strcmp(args[1].str, "boot")) {
             if (strlen(args[2].str) > 19) {
                 puts("rootdev too long");
@@ -104,6 +112,11 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
         }
     }
     screen_init();
+
+    if (*invert_fb == 1) {
+        screen_invert();
+    }
+
     screen_puts("");
     screen_puts("");
     screen_puts("");

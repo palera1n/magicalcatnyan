@@ -230,10 +230,6 @@ void screen_init() {
     }
     // map_range(0xfb0000000ULL, fbbase - fboff, fbsize, 3, 1, true);
     gFramebuffer = (uint32_t*)(fbbase);
-    for (uint16_t i = 0; i < 0x1000; i++) {
-        *(gFramebuffer + i) = 0x60;
-    }
-    // FIXME
     gFramebufferCopy = (uint32_t*)(gBootArgs->topOfKernelData + 1);
 
     height &= 0xfff0;
@@ -243,7 +239,7 @@ void screen_init() {
 
     if (width > height) scale_factor = 1;
 
-    uint32_t logo_scaler_factor = 2 * scale_factor;
+    /*uint32_t logo_scaler_factor = 2 * scale_factor;
     if (socnum == 0x8012) logo_scaler_factor = 1;
 
     uint32_t logo_x_begin = (gRowPixels / 2) - (16 * logo_scaler_factor);
@@ -259,7 +255,7 @@ void screen_init() {
             }
             gFramebuffer[ind] = curcolor;
         }
-    }
+    }*/
     memcpy(gFramebufferCopy, gFramebuffer, fbsize);
     basecolor = gFramebuffer[0];
     // cache_clean(gFramebuffer, gHeight * gRowPixels * 4);
