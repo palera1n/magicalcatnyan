@@ -40,7 +40,7 @@ void tz_command(void) {
     real[1] = (((uint64_t)raw[1] + 1) << shift) + 0x800000000ULL;
     real[2] = ( (uint64_t)raw[2]      << shift) + 0x800000000ULL;
     real[3] = (((uint64_t)raw[3] + 1) << shift) + 0x800000000ULL;
-    iprintf("TZ0 (%s):\n"
+    printf("TZ0 (%s):\n"
             "    base: %x (%llx)\n"
             "    end:  %x (%llx)\n"
             "\n"
@@ -61,7 +61,7 @@ void tz0_set(char* base_str, char *end_str) {
     uint64_t base = strtoull(base_str, NULL, 16);
     uint64_t end = strtoull(end_str, NULL, 16);
     if (gTZRegbase[4]) {
-        iprintf("registers are locked\n");
+        printf("registers are locked\n");
         return;
     }
     gTZRegbase[0] = base;
@@ -87,12 +87,12 @@ void tz_lockdown(void) {
 bool tz_blackbird(void) {
     if(0)
     {
-        iprintf("Not supported on this SoC\n");
+        printf("Not supported on this SoC\n");
         return false;
     }
     if(gTZRegbase[4])
     {
-        iprintf("Registers are locked\n");
+        printf("Registers are locked\n");
         return false;
     }
     // XXX: This used to be XOR, but that doesn't work well with the expectations in sep.c.

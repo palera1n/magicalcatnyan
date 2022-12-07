@@ -229,7 +229,7 @@ void screen_init() {
         fbsize = (fbsize + fboff + 0xfffULL) & ~0xfffULL;
     }
     // map_range(0xfb0000000ULL, fbbase - fboff, fbsize, 3, 1, true);
-    gFramebuffer = (uint32_t*)(0xfb0000000ULL + fboff);
+    gFramebuffer = (uint32_t*)(fbbase - fboff + fboff);
     for (uint16_t i = 0; i < 0x1000; i++) {
         *(gFramebuffer + i) = 0x60;
     }
@@ -260,13 +260,11 @@ void screen_init() {
             gFramebuffer[ind] = curcolor;
         }
     }
-    
     memcpy(gFramebufferCopy, gFramebuffer, fbsize);
-
     basecolor = gFramebuffer[0];
     // cache_clean(gFramebuffer, gHeight * gRowPixels * 4);
     // command_register("fbclear", "clears the framebuffer output (minus banner)", screen_clear_all);
     // command_register("fbinvert", "inverts framebuffer contents", screen_invert);
-    scale_factor = 1;
+    scale_factor = 2;
     screen_is_initialized = true;
 }

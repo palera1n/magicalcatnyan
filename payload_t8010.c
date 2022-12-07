@@ -103,10 +103,25 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
             socnum = 0x8000;
         }
     }
-    // screen_init();
-    // screen_fill(0x41414141);
-    // screen_puts("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-
+    screen_init();
+    screen_puts("");
+    screen_puts("");
+    screen_puts("");
+    screen_puts("");
+    screen_puts("");
+    screen_puts("");
+    screen_puts("");
+    screen_puts("");
+    screen_puts("");
+    screen_puts("");
+    screen_puts("==================================");
+    screen_puts("");
+    screen_puts("Hello from magicalcatnyan!");
+    screen_puts("Originally written by dora2-iOS, with modifications from Nick Chan");
+    screen_puts("");
+    screen_puts("==================================");
+    screen_mark_banner();
+    
     {
         uint32_t len = 0;
         dt_node_t* dev = dt_find(gDeviceTree, "chosen");
@@ -115,18 +130,15 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
         if (!val) panic("invalid devicetree: no prop!");
         tz_setup();
         tz_command();
-        tz_blackbird();
 	    char str[200] = "<dict ID=\"0\"><key>IOProviderClass</key><string ID=\"1\">IOService</string><key>BSD Name</key><string ID=\"2\">";
         strcat(str, rootdev);
         strcat(str, "</string></dict>");
         unsigned int txt_len = strlen(str);
         memset(val, 0x0, 0x100);
         memcpy(val, str, txt_len);
-        iprintf("set new entry: %016llx: %s \n", (uint64_t)val, rootdev);
+        printf("set new entry: %016llx: %s \n", (uint64_t)val, rootdev);
     }
-    
-    
-    iprintf("-------- bye payload --------\n");
+    printf("-------- bye payload --------\n");
     
 }
 

@@ -102,9 +102,24 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
             socnum = 0x8000;
         }
     }
-    // screen_init();
-    // screen_fill(0x41414141);
-    // screen_puts("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    screen_init();
+    screen_puts("");
+    screen_puts("");
+    screen_puts("");
+    screen_puts("");
+    screen_puts("");
+    screen_puts("");
+    screen_puts("");
+    screen_puts("");
+    screen_puts("");
+    screen_puts("");
+    screen_puts("==================================");
+    screen_puts("");
+    screen_puts("Hello from magicalcatnyan!");
+    screen_puts("Originally written by dora2-iOS, with modifications from Nick Chan");
+    screen_puts("");
+    screen_puts("==================================");
+    screen_mark_banner();
     
     {
         uint32_t len = 0;
@@ -120,11 +135,9 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
         unsigned int txt_len = strlen(str);
         memset(val, 0x0, 0x100);
         memcpy(val, str, txt_len);
-        iprintf("set new entry: %016llx: %s \n", (uint64_t)val, rootdev);
+        printf("set new entry: %016llx: %s \n", (uint64_t)val, rootdev);
     }
-    
-    
-    iprintf("-------- bye payload --------\n");
+    printf("-------- bye payload --------\n");
     
 }
 
