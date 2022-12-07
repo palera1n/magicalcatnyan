@@ -40,7 +40,8 @@ OBJECTS	= \
 		lib/strtoull.o \
 		lib/strcat.o \
 		lib/puts.o \
-		lib/bzero.o
+		lib/bzero.o \
+		lib/vmacho.o
 
 @export DRIVERS CC CFLAGS
 
