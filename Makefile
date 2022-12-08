@@ -1,5 +1,5 @@
 CC = xcrun -sdk iphoneos clang
-CC_FOR_BUILD = clang
+BUILD_CC = clang
 CFLAGS_FOR_BUILD += -Os -Wall -Wextra
 LDFLAGS_FOR_BUILD ?= -flto=thin
 
@@ -50,7 +50,7 @@ export DRIVERS CC CFLAGS
 all: payload
 
 vmacho:
-	$(CC_FOR_BUILD) $(CFLAGS_FOR_BUILD) $(LDFLAGS_FOR_BUILD) -o vmacho vmacho.c
+	$(BUILD_CC) $(CFLAGS_FOR_BUILD) $(LDFLAGS_FOR_BUILD) -o vmacho vmacho.c
 
 payload: $(OBJ)_s8000.bin $(OBJ)_t8010.bin $(OBJ)_t8015.bin
 
