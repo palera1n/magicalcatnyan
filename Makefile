@@ -1,5 +1,7 @@
 CC = xcrun -sdk iphoneos clang
-MAC_CC = clang
+CC_FOR_BUILD = clang
+CFLAGS_FOR_BUILD += -Os -Wall -Wextra
+LDFLAGS_FOR_BUILD ?= -flto=thin
 
 SRC_ROOT = $(shell pwd)
 SUBDIRS = kernel lib drivers
@@ -48,10 +50,9 @@ export DRIVERS CC CFLAGS
 all: payload
 
 vmacho:
-	$(MAC_CC) -o vmacho vmacho.c -O3
-	$(RM) vmacho.c
+	$(CC_FOR_BUILD) $(CFLAGS_FOR_BUILD) $(LDFLAGS_FOR_BUILD) -o vmacho vmacho.c
 
-payload: $(OBJ)_s8000.bin $(OBJ)_t8010.bin $(OBJ)_t8015.bin 
+payload: $(OBJ)_s8000.bin $(OBJ)_t8010.bin $(OBJ)_t8015.bin
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
@@ -62,11 +63,14 @@ $(SUBDIRS):
 payload_%.o: $(SUBDIRS)
 	$(CC) payload.c drivers/plat/$*.o -DPAYLOAD_$* -DBUILDING_PAYLOAD $(OBJECTS) $(CFLAGS) $(LDFLAGS) -o $(OBJ)_$*.o
 
-payload_%.bin: payload_%.o
+payload_%.bin: payload_%.o vmacho
 	./vmacho -fM 0x80000 $(OBJ)_$*.o $(OBJ)_$*.bin
-	
+
 clean:
 	find . -name '*.bin' -type f -delete
 	find . -name '*.o' -type f -delete
 
-.PHONY: all clean vmacho payload $(SUBDIRS)
+distclean: clean
+	rm -f vmacho
+
+.PHONY: all clean payload $(SUBDIRS)
