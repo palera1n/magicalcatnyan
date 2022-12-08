@@ -1,4 +1,5 @@
 CC = xcrun -sdk iphoneos clang
+MAC_CC = clang
 
 SRC_ROOT = $(shell pwd)
 SUBDIRS = kernel lib drivers
@@ -12,39 +13,43 @@ LDFLAGS	=  -Wl,-preload -Wl,-no_uuid -Wl,-e,start -Wl,-order_file,sym_order.txt 
 
 OBJ = payload
 
-OBJECTS	=	\
-			drivers/dt/dtree.o \
-			drivers/dt/dtree_getprop.o \
-			drivers/tz/tz.o \
-			drivers/framebuffer/fb.o \
-			drivers/recfg/recfg.o \
-			drivers/recfg/recfg_soc.o \
-			kernel/command.o \
-			kernel/lowlevel.o \
-			kernel/printf.o \
-			kernel/offsetfinder.o \
-			kernel/entry.o \
-			lib/memset.o \
-			lib/memmem.o \
-			lib/memmove.o \
-			lib/strcmp.o \
-			lib/strlen.o \
-			lib/strcpy.o \
-			lib/strncpy.o \
-			lib/strchr.o \
-			lib/strncmp.o \
-			lib/isalpha.o \
-			lib/isdigit.o \
-			lib/isspace.o \
-			lib/isupper.o \
-			lib/strtoull.o \
-			lib/strcat.o \
-			lib/puts.o \
-			lib/bzero.o
+OBJECTS	= \
+		drivers/dt/dtree.o \
+		drivers/dt/dtree_getprop.o \
+		drivers/tz/tz.o \
+		drivers/framebuffer/fb.o \
+		drivers/recfg/recfg.o \
+		drivers/recfg/recfg_soc.o \
+		kernel/command.o \
+		kernel/lowlevel.o \
+		kernel/printf.o \
+		kernel/offsetfinder.o \
+		kernel/entry.o \
+		lib/memset.o \
+		lib/memmem.o \
+		lib/memmove.o \
+		lib/strcmp.o \
+		lib/strlen.o \
+		lib/strcpy.o \
+		lib/strncpy.o \
+		lib/strchr.o \
+		lib/strncmp.o \
+		lib/isalpha.o \
+		lib/isdigit.o \
+		lib/isspace.o \
+		lib/isupper.o \
+		lib/strtoull.o \
+		lib/strcat.o \
+		lib/puts.o \
+		lib/bzero.o
 
 export DRIVERS CC CFLAGS
 
 all: payload
+
+vmacho:
+	$(MAC_CC) -o vmacho vmacho.c -O3
+	$(RM) vmacho.c
 
 payload: $(OBJ)_s8000.bin $(OBJ)_t8010.bin $(OBJ)_t8015.bin 
 
