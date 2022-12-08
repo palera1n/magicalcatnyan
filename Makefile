@@ -69,4 +69,4 @@ clean:
 	find . -name '*.bin' -type f -delete
 	find . -name '*.o' -type f -delete
 
-.PHONY: all clean payload $(SUBDIRS)
+.PHONY: all clean vmacho payload $(SUBDIRS)
