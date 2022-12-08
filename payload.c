@@ -186,6 +186,9 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     pmgr_init();
     wdt_disable();
 
+    memcpy((char*)dt_get_prop("chosen", "firmware-version", NULL), "iMoot-", 6);
+    sprintf((char*)dt_get_prop("chosen", "firmware-version", NULL), "%s-magicalcatnyan", (char*)dt_get_prop("chosen", "firmware-version", NULL));
+
     printf("Booted by: %s\n", (const char*)dt_get_prop("chosen", "firmware-version", NULL));
 #ifdef __clang__
     printf("Built with: Clang %s\n", __clang_version__);
