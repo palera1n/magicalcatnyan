@@ -73,4 +73,4 @@ clean:
 distclean: clean
 	rm -f vmacho
 
-.PHONY: all clean payload $(SUBDIRS)
+.PHONY: all distclean clean payload $(SUBDIRS)
