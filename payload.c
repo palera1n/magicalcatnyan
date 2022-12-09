@@ -206,14 +206,14 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
         uint32_t len = 0;
         dt_node_t* dev = dt_find(gDeviceTree, "chosen");
         if (!dev) panic("invalid devicetree: no device!");
-        uint32_t* val = dt_prop(dev, "root-matching", &len);
+        char* val = (char*)dt_prop(dev, "root-matching", &len);
         if (!val) panic("invalid devicetree: no prop!");
-	    char str[200] = "<dict ID=\"0\"><key>IOProviderClass</key><string ID=\"1\">IOService</string><key>BSD Name</key><string ID=\"2\">";
+        // There are exactly 256 bytes of space
+	    char str[256] = "<dict ID=\"0\"><key>IOProviderClass</key><string ID=\"1\">IOService</string><key>BSD Name</key><string ID=\"2\">";
         strcat(str, rootdev);
         strcat(str, "</string></dict>");
-        unsigned int txt_len = strlen(str);
-        memset(val, 0x0, 0x100);
-        memcpy(val, str, txt_len);
+        memset((void*)val, 0x0, 256);
+        sprintf(val, str);
         printf("set new entry: %016llx: %s \n", (uint64_t)val, rootdev);
     }
     if (*xargs_set == 1) strcpy(gBootArgs->CommandLine, CommandLine);
