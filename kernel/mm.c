@@ -82,12 +82,14 @@ int mm_init() {
 	alloc_base = (gBootArgs->topOfKernelData + 1 + sizeof(free_table_t) + sizeof(alloc_table_t));
 	alloc_end = 0x800000000ULL + gBootArgs->memSize;
 	// note the first alloc and free table is under alloc_base and will never be freed
-	new_free_table((free_table_t*)alloc_base);
-	new_alloc_table((alloc_table_t*)(alloc_base + sizeof(free_table_t)));
-	first_free_table = (free_table_t*)alloc_base;
+	first_free_table = (free_table_t*)gBootArgs->topOfKernelData + 1;
+	first_alloc_table = (alloc_table_t*)gBootArgs->topOfKernelData + 1 + sizeof(free_table_t);
+	new_free_table(first_free_table);
+	new_alloc_table(first_alloc_table);
 	first_free_table->count = 1;
 	first_free_table->entries[0].bottom = (void*)alloc_base;
 	first_free_table->entries[0].top = (void*)alloc_end;
+	first_free_table->entries[0].valid = 1;
 	return 0;
 }
 
@@ -139,6 +141,7 @@ void* malloc(my_size_t size) {
 	for (; current_free_table != NULL; current_free_table = current_free_table->next_free_table) {
 		printf("current_free_table @ %p\n", current_free_table);
 		void* addr = malloc_in_free_table(current_free_table, size);
+		printf("addr @ %p\n", addr);
 		free_table_count += 1;
 		if (addr != NULL) {
 			ret = addr;
