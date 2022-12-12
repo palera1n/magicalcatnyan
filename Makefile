@@ -7,7 +7,7 @@ SRC_ROOT = $(shell pwd)
 SUBDIRS = kernel lib drivers
 
 OBJCOPY	= /opt/homebrew/opt/binutils/bin/gobjcopy
-DRIVERS = tz plat dt recfg framebuffer
+DRIVERS = tz plat dt framebuffer
 
 CFLAGS	= -I$(SRC_ROOT)/include -I$(SRC_ROOT)/apple-include -I$(SRC_ROOT) -DDER_TAG_SIZE=8 -target arm64-apple-ios12.0 -Os
 CFLAGS	+= -Wall -Wextra -Wno-unused-parameter -Wno-incompatible-library-redeclaration -fno-stack-protector -nostdlib -static -nostdlibinc
@@ -20,8 +20,6 @@ OBJECTS	= \
 		drivers/dt/dtree_getprop.o \
 		drivers/tz/tz.o \
 		drivers/framebuffer/fb.o \
-		drivers/recfg/recfg.o \
-		drivers/recfg/recfg_soc.o \
 		kernel/command.o \
 		kernel/lowlevel.o \
 		kernel/printf.o \

@@ -198,9 +198,6 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     printf("Ruuning on %x\n", socnum);
     tz_setup();
     tz_command();
-    if (recfg_soc_setup() == 0) {
-        // recfg_cmd_dump("","");
-    }
 
     {
         uint32_t len = 0;
