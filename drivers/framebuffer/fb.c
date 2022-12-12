@@ -231,6 +231,7 @@ void screen_init() {
     // map_range(0xfb0000000ULL, fbbase - fboff, fbsize, 3, 1, true);
     gFramebuffer = (uint32_t*)(fbbase);
     gFramebufferCopy = (uint32_t*)(gBootArgs->topOfKernelData + 1);
+    // gFramebufferCopy = (uint32_t*)0x840000000;
 
     height &= 0xfff0;
     scale_factor = 2;

@@ -114,6 +114,7 @@ extern uint64_t dt_get_u64_prop(const char* device, const char* prop);
 extern uint32_t dt_get_u32_prop(const char* device, const char* prop);
 extern uint64_t dt_get_u64_prop_i(const char* device, const char* prop, uint32_t idx);
 
+extern int mm_init();
 
 // iboot
 typedef int (*printf_t)(const char *format, ...);
@@ -123,14 +124,15 @@ jumpto_t jumpto;
 typedef void (*fsboot_t)(void);
 fsboot_t fsboot;
 typedef int (*panic_t)(const char *format, ...);
-panic_t real_panic;
-int panic(const char* panic_string);
+__attribute__((noreturn))panic_t real_panic;
+__attribute__((noreturn))int panic(const char* panic_string);
 
 // main
 int iboot_func_init(void);
 void iboot_func_load(void);
 
 // libc
+
 int strcmp(const char *s1, const char *s2);
 my_size_t strlen(const char * str);
 void *memset(void *s, int c, my_size_t n);
@@ -149,6 +151,13 @@ char* strcat (char* dest, char* src);
 unsigned long long strtoull(const char *str, char **endptr, int base);
 int puts(const char* str);
 char *strncpy(char *dest, const char *src, my_size_t n);
+void bzero (void *s, my_size_t n);
+
+// libc - kernel
+
+void* malloc(my_size_t size);
+void* calloc(my_size_t nitems, my_size_t size);
+void free(void* ptr);
 
 // pongo
 char* command_tokenize(char* str, unsigned int strbufsz);

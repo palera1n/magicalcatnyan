@@ -24,6 +24,7 @@ OBJECTS	= \
 		kernel/lowlevel.o \
 		kernel/printf.o \
 		kernel/offsetfinder.o \
+		kernel/mm.o \
 		kernel/entry.o \
 		lib/memset.o \
 		lib/memmem.o \

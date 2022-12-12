@@ -162,6 +162,10 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
             socnum = 0x8000;
         }
     }
+        
+    pmgr_init();
+    wdt_disable();
+    mm_init();
     screen_init();
 
     if (*invert_fb == 1) {
@@ -182,9 +186,8 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     screen_puts("");
     screen_puts("==================================");
     screen_mark_banner();
-    
-    pmgr_init();
-    wdt_disable();
+
+    // printf("Try malloc(1) @ %p\n", malloc(1));
 
     memcpy((char*)dt_get_prop("chosen", "firmware-version", NULL), "iMoot-", 6);
     sprintf((char*)dt_get_prop("chosen", "firmware-version", NULL), "%s-magicalcatnyan", (char*)dt_get_prop("chosen", "firmware-version", NULL));
