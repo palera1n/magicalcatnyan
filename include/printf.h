@@ -34,6 +34,14 @@
 
 #include <stdarg.h>
 #include <stddef.h>
+
+#if DEV_BUILD
+#define dprintf(...) printf(__VA_ARGS__)
+#else
+#define dprintf(...)
+#endif
+
+
 typedef unsigned long long my_size_t;
 
 #ifdef __cplusplus

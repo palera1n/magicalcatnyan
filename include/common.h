@@ -10,7 +10,7 @@ typedef uint64_t my_size_t;
 #include "drivers/recfg/recfg.h"
 #include "drivers/recfg/recfg_soc.h"
 
-#include "../printf.h"
+#include "printf.h"
 
 extern uint32_t socnum;
 extern bool screen_is_initialized;
@@ -160,13 +160,15 @@ void* calloc(my_size_t nitems, my_size_t size);
 void free(void* ptr);
 
 // pongo
-char* command_tokenize(char* str, unsigned int strbufsz);
 void wdt_disable();
 void wdt_enable();
 void pmgr_init();
 
 // command
+#if DEV_BUILD
+char* command_tokenize(char* str, unsigned int strbufsz);
 void peek(char* addr_str, char* size_str);
 void poke(char* addr_str, char* u64_data);
+#endif
 
 #endif

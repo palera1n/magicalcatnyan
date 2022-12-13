@@ -24,8 +24,10 @@ static void usage(void)
     printf("\txargs [boot cmdline]\t: set or clear xnu boot command line\n");
     printf("\tdefault_xargs \t\t: use the default xnu boot command line\n");
     printf("\tfbinvert\t\t: invert boot framebuffer\n");
+#if DEV_BUILD
     printf("\tpeek <addr> <size>\t: dump memory\n");
     printf("\tpoke <addr> <uint64>\t: write <uint64> to <addr>\n");
+#endif
 }
 
 int payload(int argc, struct cmd_arg *args)
@@ -73,6 +75,7 @@ int payload(int argc, struct cmd_arg *args)
             return 0;
         }
     } else if (argc == 4) {
+#if DEV_BUILD
         if (!strcmp(args[1].str, "peek")) {
             peek(args[2].str, args[3].str);
             return 0;
@@ -80,6 +83,7 @@ int payload(int argc, struct cmd_arg *args)
             poke(args[2].str, args[3].str);
             return 0;
         }
+#endif
     }
 
     if (argc > 1 && (!strcmp(args[1].str, "xargs"))) {
@@ -187,7 +191,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     screen_puts("==================================");
     screen_mark_banner();
 
-    // printf("Try malloc(1) @ %p\n", malloc(1));
+    printf("Try malloc(1) @ %p\n", malloc(1));
 
     memcpy((char*)dt_get_prop("chosen", "firmware-version", NULL), "iMoot-", 6);
     sprintf((char*)dt_get_prop("chosen", "firmware-version", NULL), "%s-magicalcatnyan", (char*)dt_get_prop("chosen", "firmware-version", NULL));
@@ -198,9 +202,13 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
 #else
     printf("Built with: GCC %s\n", __VERSION__);
 #endif
+#if DEV_BUILD
+    printf("Build type: DEVELOPMENT\n");
+#else
+    printf("Build type: RELEASE\n");
+#endif
     printf("Ruuning on %x\n", socnum);
     tz_setup();
-    tz_command();
 
     {
         uint32_t len = 0;
@@ -219,6 +227,8 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     if (*xargs_set == 1) strcpy(gBootArgs->CommandLine, CommandLine);
     if (*xfb_state == 1) flip_video_display();
     printf("xnu boot arg cmdline: [%s]\n", gBootArgs->CommandLine);
+#if DEV_BUILD
+    tz_command();
     printf("gBootArgs:\n"
         "\tRevision: 0x%x\n"
         "\tVersion: 0x%x\n"
@@ -245,6 +255,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
         gBootArgs->bootFlags,
         gBootArgs->memSizeActual
     );
+#endif
     printf("-------- bye payload --------\n");
     
 }

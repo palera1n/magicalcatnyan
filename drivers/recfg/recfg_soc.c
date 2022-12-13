@@ -511,7 +511,7 @@ static void recfg_cmd_lock(const char *cmd, char *args)
     recfg_soc_lock();
 }
 
-void recfg_cmd(const char* cmd, char *args)
+/*void recfg_cmd(const char* cmd, char *args)
 {
     char *arguments = command_tokenize(args, 0x1ff - (args - cmd));
     if(arguments)
@@ -530,7 +530,7 @@ void recfg_cmd(const char* cmd, char *args)
         }
         recfg_cmd_help(cmd, arguments);
     }
-}
+}*/
 
 int recfg_soc_setup(void)
 {

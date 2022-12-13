@@ -56,7 +56,8 @@ int panic(const char* panic_string) {
         screen_puts(panic_string);
     }
     while(1) {};
-    return real_panic(panic_string);
+    real_panic(panic_string);
+    while(1) {};
 }
 
 void wdt_disable()

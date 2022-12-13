@@ -116,19 +116,22 @@ static void* malloc_in_free_table(free_table_t* table, my_size_t size) {
 	return ret;
 }
 
-static int write_alloc_table(alloc_table_t* table, void* ptr, my_size_t size) {
+static alloc_region_t* write_alloc_table(alloc_table_t* table, void* ptr, my_size_t size) {
 	int has_written = 0;
+	alloc_region_t* block;
 	for (uint8_t i = 0; i < UINT8_MAX; i++) {
-		alloc_region_t* block = &table->entries[i];
+		block = &(table->entries[i]);
+		dprintf("block %u @ %p\n", i, block);
 		if (block->valid == 1) continue;
 		block->valid = 1;
 		block->addr = ptr;
 		block->size = size;
 		has_written = 1;
 		table->count += 1;
+		break;
 	}
-	if (has_written == 0) return -1;
-	else return 0;
+	if (has_written == 0) return NULL;
+	else return block;
 }
 
 void* malloc(my_size_t size) {
@@ -139,9 +142,9 @@ void* malloc(my_size_t size) {
 	alloc_table_t* current_alloc_table = first_alloc_table;
 	free_table_t* current_free_table = first_free_table;
 	for (; current_free_table != NULL; current_free_table = current_free_table->next_free_table) {
-		printf("current_free_table @ %p\n", current_free_table);
+		dprintf("current_free_table @ %p\n", current_free_table);
 		void* addr = malloc_in_free_table(current_free_table, size);
-		printf("addr @ %p\n", addr);
+		dprintf("Address to return to caller = %p\n", addr);
 		free_table_count += 1;
 		if (addr != NULL) {
 			ret = addr;
@@ -150,18 +153,23 @@ void* malloc(my_size_t size) {
 	}
 	if (ret == NULL) goto oom;
 	current_free_table = first_free_table;
+	dprintf("current_free_table = first_free_table\n");
 	for (; current_alloc_table->count != UINT8_MAX; current_alloc_table = current_alloc_table->next_alloc_table) {
+		dprintf("current_alloc_table->count: %u\n", current_alloc_table->count);
+		dprintf("current_alloc_table @ %p\n", current_alloc_table);
 		if (current_alloc_table == NULL) {
 			// this really should be unreachable...
 			panic("Null allocation table\n");
 			while(1) {};
 		}
 		if (current_alloc_table->count == (UINT8_MAX - 1) && current_alloc_table->next_alloc_table == NULL) {
+			dprintf("almost full allocation table found! @ %p\n", current_alloc_table);
 			for (; current_free_table != NULL; current_free_table = current_free_table->next_free_table) {
+				dprintf("Attempting to malloc alloc table in free table @ %p\n", current_free_table);
 				// malloc is just shrinking or removing free entries, so won't run out of table slots
 				void* addr = malloc_in_free_table(current_free_table, sizeof(alloc_table_t));
-				current_free_table = NULL;
 				if (addr != NULL) {
+					dprintf("Got new alloc table address @ %p\n", current_free_table);
 					current_alloc_table->next_alloc_table = addr;
 				}
 			}
@@ -175,8 +183,13 @@ void* malloc(my_size_t size) {
 			write_alloc_table(current_alloc_table, current_alloc_table->next_alloc_table, sizeof(alloc_table_t));
 			continue;
 		} else {
+			dprintf("Found allocation table @ %p with empty space!\n", current_alloc_table);
 			// write the newly made allocation into the allocation table
-			write_alloc_table(current_alloc_table, ret, size);
+			alloc_region_t* region = write_alloc_table(current_alloc_table, ret, size);
+			if (region == NULL) {
+				dprintf("Unable to write ptr %p of size %llu into allocation table, this memory could not be freed\n", ret, size);
+			}
+			break;
 		}
 	}
 	return ret;

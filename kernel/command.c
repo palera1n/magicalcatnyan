@@ -1,5 +1,6 @@
 #include <common.h>
 
+#if DEV_BUILD
 char* command_tokenize(char* str, unsigned int strbufsz) {
     char* bound = &str[strbufsz];
     while (*str) {
@@ -87,3 +88,4 @@ void poke(char* addr_str, char* u64_data) {
   printf("*0x%p = %llu\n", addr, data);
   return;
 }
+#endif

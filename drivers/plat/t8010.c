@@ -53,6 +53,9 @@ void iboot_func_load(void)
     uint64_t* offsetBase = (uint64_t*)(PAYLOAD_BASE_ADDRESS_T8010 + 0x40);
     iprintf = (printf_t)offsetBase[0];
     fsboot  = (fsboot_t)offsetBase[1];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wincompatible-function-pointer-types"
     jumpto  = (jumpto_t)offsetBase[2];
     real_panic   = (panic_t) offsetBase[3];
 }
+#pragma clang diagnostic pop
