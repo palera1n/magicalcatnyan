@@ -1,5 +1,4 @@
 #include <common.h>
-
 /*
 	This memory allocation system hardcodes two tables with a list of allocated
 	pointers and free memory respectively. These tables can each hold 255 entries
@@ -121,7 +120,7 @@ static alloc_region_t* write_alloc_table(alloc_table_t* table, void* ptr, my_siz
 	alloc_region_t* block;
 	for (uint8_t i = 0; i < UINT8_MAX; i++) {
 		block = &(table->entries[i]);
-		dprintf("block %u @ %p\n", i, block);
+		// dprintf("block %u @ %p\n", i, block);
 		if (block->valid == 1) continue;
 		block->valid = 1;
 		block->addr = ptr;
@@ -130,10 +129,13 @@ static alloc_region_t* write_alloc_table(alloc_table_t* table, void* ptr, my_siz
 		table->count += 1;
 		break;
 	}
-	if (has_written == 0) return NULL;
-	else return block;
+	if (has_written == 0) {
+		dprintf("allocation table @ %p is full! table->count: %u is probably incorrect\n", table, table->count);
+		return NULL;
+	} else return block;
 }
-
+#undef dprintf
+#define dprintf(...)
 void* malloc(my_size_t size) {
 	if (size == 0) panic("malloc(0)\n");
 	void* ret = NULL;
@@ -154,7 +156,7 @@ void* malloc(my_size_t size) {
 	if (ret == NULL) goto oom;
 	current_free_table = first_free_table;
 	dprintf("current_free_table = first_free_table\n");
-	for (; current_alloc_table->count != UINT8_MAX; current_alloc_table = current_alloc_table->next_alloc_table) {
+	for (;; current_alloc_table = current_alloc_table->next_alloc_table) {
 		dprintf("current_alloc_table->count: %u\n", current_alloc_table->count);
 		dprintf("current_alloc_table @ %p\n", current_alloc_table);
 		if (current_alloc_table == NULL) {
@@ -162,6 +164,7 @@ void* malloc(my_size_t size) {
 			panic("Null allocation table\n");
 			while(1) {};
 		}
+		if (current_alloc_table->count == UINT8_MAX) continue;
 		if (current_alloc_table->count == (UINT8_MAX - 1) && current_alloc_table->next_alloc_table == NULL) {
 			dprintf("almost full allocation table found! @ %p\n", current_alloc_table);
 			for (; current_free_table != NULL; current_free_table = current_free_table->next_free_table) {
@@ -173,7 +176,7 @@ void* malloc(my_size_t size) {
 					current_alloc_table->next_alloc_table = addr;
 				}
 			}
-			// fully full tables with no next table should not exist unless OOM
+			// fully full alloc tables with no next table should not exist unless OOM
 			if (current_alloc_table->next_alloc_table == NULL) {
 				oom_table_alloc = 1;
 				goto oom;
@@ -181,6 +184,7 @@ void* malloc(my_size_t size) {
 			new_alloc_table(current_alloc_table->next_alloc_table);
 			// now, the current table will be full, and the new one will be used instead
 			write_alloc_table(current_alloc_table, current_alloc_table->next_alloc_table, sizeof(alloc_table_t));
+			dprintf("Wrote new alloc table @ %p into current alloc table @ %p count %u\n",current_alloc_table->next_alloc_table, current_alloc_table, current_alloc_table->count);
 			continue;
 		} else {
 			dprintf("Found allocation table @ %p with empty space!\n", current_alloc_table);
@@ -191,6 +195,8 @@ void* malloc(my_size_t size) {
 			}
 			break;
 		}
+		dprintf("unreachable\n");
+		while(1) {}
 	}
 	return ret;
 oom: {
@@ -239,21 +245,35 @@ static alloc_table_t* find_prev_alloc_table(alloc_table_t* table) {
 	}
 	return current_alloc_table;
 }
-
+#undef dprintf
+#define dprintf(...) printf(__VA_ARGS__)
 void free(void* ptr) {
+	dprintf("free: about to free ptr 0x%p\n", ptr);
 	alloc_table_t* current_alloc_table = first_alloc_table;
 	free_table_t* current_free_table = first_free_table;
+	uint8_t alloc_found = 0;
 	my_size_t size = 0;
 	for (; current_alloc_table != NULL; current_alloc_table = current_alloc_table->next_alloc_table) {
+		dprintf("free: current_alloc_table->count: %u\n", current_alloc_table->count);
+		dprintf("free: current_alloc_table @ %p\n", current_alloc_table);
 		for (uint8_t i = 0; i < UINT8_MAX; i++) {
 			if (current_alloc_table->entries[i].valid != 1) continue;
 			if (current_alloc_table->entries[i].addr != ptr) continue;
 			// zero-on-free
 			size = current_alloc_table->entries[i].size;
+			dprintf("free: about to zero ptr %p for %llu bytes\n", current_alloc_table->entries[i].addr, size);
 			bzero(current_alloc_table->entries[i].addr, size);
+			dprintf("free: zeroed memory @ %p\n", ptr);
 			current_alloc_table->entries[i].valid = 0;
 			current_alloc_table->count--;
+			alloc_found = 1;
+			goto breakout;
 		}
+	}
+breakout:
+	if (alloc_found != 1) {
+		dprintf("free: Cannot find allocation @ %p, double free perhaps?\n", ptr);
+		return;
 	}
 	free_entry_info_t above_free;
 	free_entry_info_t below_free;
@@ -306,18 +326,22 @@ void free(void* ptr) {
 			} else if ((current_free_table->entries[i].bottom - 1) == ((char*)ptr + size)) {
 				above_free.free_table = current_free_table;
 				above_free.entry = &current_free_table->entries[i];
+				dprintf("free: Found free region above the newly freed memory!\n");
 			} else if ((current_free_table->entries[i].top + 1) == ptr) {
 				below_free.free_table = current_free_table;
 				below_free.free_table = current_free_table;
+				dprintf("free: Found free region below the newly freed memory!\n");
 			}
 		}
 	}
 	current_free_table = first_free_table;
 	if (above_free.valid == 1 && below_free.valid == 0) {
-		above_free.entry->bottom -= size;
+		above_free.entry->bottom = ptr;
+		dprintf("free: Merged newly free region with another free region above\n");
 	} else if (above_free.valid == 0 && below_free.valid == 1) {
 		below_free.entry->top += 1;
 		below_free.entry->top += size;
+		dprintf("free: Merged newly free region with another free region below\n");
 	} else if (above_free.valid == 1 && below_free.valid == 1) {
 		above_free.entry->bottom = below_free.entry->bottom;
 		below_free.entry->valid = 0;
@@ -327,8 +351,10 @@ void free(void* ptr) {
 			if (prev_table->count < UINT8_MAX) {
 				free(below_free.free_table);
 				prev_table->next_free_table = NULL;
+				dprintf("free: freed free table @ %p\n");
 			}
 		}
+		dprintf("free: Merged newly free region with two free regions right above and below\n");
 	} else {
 		uint8_t freed = 0;
 		for (; current_free_table != NULL; current_free_table = current_free_table->next_free_table) {
@@ -339,6 +365,7 @@ void free(void* ptr) {
 			if (current_free_table->count == UINT8_MAX && current_free_table->next_free_table == NULL) {
 				current_free_table->next_free_table = malloc(sizeof(free_table_t));
 				new_free_table(current_free_table->next_free_table);
+				dprintf("free: created new free table @ %p\n", current_free_table->next_free_table);
 				continue;
 			}
 			for (uint8_t i = 0; i < UINT8_MAX; i++) {
@@ -348,20 +375,23 @@ void free(void* ptr) {
 				current_free_table->entries[i].valid = 1;
 				current_free_table->count++;
 				freed = 1;
-				break;
+				dprintf("free: freed memory by inserting new entry into free table %p entry %u\n", current_free_table, i);
+				goto breakout_free;
 			}
 			if (!freed) {
-				printf("free: unable to free memory of size %llu at 0x%x, current_free_table->count: %u is probably incorrect\n", size, ptr, current_free_table->count);
-				break;
+				dprintf("free: unable to free memory of size %llu at 0x%x, current_free_table->count: %u is probably incorrect\n", size, ptr, current_free_table->count);
+				goto breakout_free;
 			}
+			panic("free: unreachable\n");
 		}
-
 	}
+breakout_free:
 	if (current_alloc_table->count == 0 && current_alloc_table != first_alloc_table && current_alloc_table->next_alloc_table == NULL) {
 		alloc_table_t* prev_table = find_prev_alloc_table(current_alloc_table);
 		if (prev_table->count < UINT8_MAX) {
 			free(current_alloc_table);
 			prev_table->next_alloc_table = NULL;
+			dprintf("free: freed alloc table @ %p\n", current_alloc_table);
 		}
 	}
 

@@ -191,11 +191,29 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     screen_puts("==================================");
     screen_mark_banner();
 
-    printf("Try malloc(1) @ %p\n", malloc(1));
+#if 0
+    uint16_t h = 0;
+    char** ptrs = malloc(1024 * sizeof(char*));
+    my_size_t malloc_test_sizes[] = { 1, 8, 43, 90, 431, 5, 133, 91 };
+    for (uint8_t i = 0; i < 128; i++) {
+        for (uint8_t j = 0; j < 8; j++) {
+            // dprintf("h = %u, i = %u, j = %u\n", h, i ,j);
+            ptrs[h] = malloc(malloc_test_sizes[j]);
+            for (my_size_t k = 0; k < malloc_test_sizes[j]; k++) {
+                *(char*)ptrs[h] = 0x7f;
+            }
+            h++;
+        }
+    }
+    printf("done!\n");
+    for (uint16_t i = 0; i < 1024; i++) {
+        dprintf("i = %u\n", i);
+        free(ptrs[i]);
+    }
+#endif
 
     memcpy((char*)dt_get_prop("chosen", "firmware-version", NULL), "iMoot-", 6);
     sprintf((char*)dt_get_prop("chosen", "firmware-version", NULL), "%s-magicalcatnyan", (char*)dt_get_prop("chosen", "firmware-version", NULL));
-
     printf("Booted by: %s\n", (const char*)dt_get_prop("chosen", "firmware-version", NULL));
 #ifdef __clang__
     printf("Built with: Clang %s\n", __clang_version__);
@@ -229,7 +247,8 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     printf("xnu boot arg cmdline: [%s]\n", gBootArgs->CommandLine);
 #if DEV_BUILD
     tz_command();
-    printf("gBootArgs:\n"
+#endif
+    dprintf("gBootArgs:\n"
         "\tRevision: 0x%x\n"
         "\tVersion: 0x%x\n"
         "\tvirtBase: 0x%llx\n"
@@ -255,7 +274,6 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
         gBootArgs->bootFlags,
         gBootArgs->memSizeActual
     );
-#endif
     printf("-------- bye payload --------\n");
     
 }

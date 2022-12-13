@@ -65,6 +65,7 @@ void wdt_disable()
     if (!gWDTBase) return;
     WDT_CHIP_CTL = 0x0; // Disable WDT
     WDT_SYS_CTL  = 0x0; // Disable WDT
+    dprintf("Watchdog disabled\n");
 }
 
 void wdt_enable() {

@@ -127,8 +127,10 @@ void _putchar(char character)
   if (screen_is_initialized == true) {
     screen_putc(character);
   }
-  char s[2] = {character};
-  iprintf(s);
+  if (iprintf != NULL) {
+    char s[2] = {character};
+    iprintf(s);
+  }
 }
 
 // output function type
