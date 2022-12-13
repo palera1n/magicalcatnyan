@@ -1,3 +1,5 @@
+#include <common.h>
+
 long atoi(const char* S)
 {
     long num = 0;

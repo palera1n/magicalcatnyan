@@ -1,3 +1,5 @@
+#include <common.h>
+
 int isalpha(c)
 int c;
 {

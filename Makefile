@@ -7,7 +7,7 @@ SRC_ROOT = $(shell pwd)
 SUBDIRS = kernel lib drivers
 
 OBJCOPY	= /opt/homebrew/opt/binutils/bin/gobjcopy
-DRIVERS = tz plat dt recfg framebuffer
+DRIVERS = plat dt framebuffer
 
 CFLAGS	= -I$(SRC_ROOT)/include -I$(SRC_ROOT)/apple-include -I$(SRC_ROOT) -DDER_TAG_SIZE=8 -target arm64-apple-ios12.0 -Os
 CFLAGS	+= -Wall -Wextra -Wno-unused-parameter -Wno-incompatible-library-redeclaration -fno-stack-protector -nostdlib -static -nostdlibinc
@@ -18,10 +18,7 @@ OBJ = payload
 OBJECTS	= \
 		drivers/dt/dtree.o \
 		drivers/dt/dtree_getprop.o \
-		drivers/tz/tz.o \
 		drivers/framebuffer/fb.o \
-		drivers/recfg/recfg.o \
-		drivers/recfg/recfg_soc.o \
 		kernel/command.o \
 		kernel/lowlevel.o \
 		kernel/printf.o \
@@ -60,8 +57,14 @@ payload: $(OBJ)_s8000.bin $(OBJ)_t8010.bin $(OBJ)_t8015.bin
 $(SUBDIRS):
 	$(MAKE) -C "$@"
 
-payload_%.o: $(SUBDIRS)
-	$(CC) payload.c drivers/plat/$*.o -DPAYLOAD_$* -DBUILDING_PAYLOAD $(OBJECTS) $(CFLAGS) $(LDFLAGS) -o $(OBJ)_$*.o
+newlib:
+	$(MAKE) -C pongoOS/newlib all
+
+pongo:
+	$(MAKE) -C pongoOS build/libpongo.a
+
+payload_%.o: $(SUBDIRS) newlib pongo
+	$(CC) -DPAYLOAD_$* pongoOS/build/libpongo.a pongoOS/newlib/build/libc.a payload.c drivers/plat/$*.o -DBUILDING_PAYLOAD $(OBJECTS) $(CFLAGS) $(LDFLAGS) -o $(OBJ)_$*.o
 
 payload_%.bin: payload_%.o vmacho
 	./vmacho -fM 0x80000 $(OBJ)_$*.o $(OBJ)_$*.bin
@@ -69,6 +72,7 @@ payload_%.bin: payload_%.o vmacho
 clean:
 	find . -name '*.bin' -type f -delete
 	find . -name '*.o' -type f -delete
+	$(MAKE) -C pongoOS clean
 
 distclean: clean
 	rm -f vmacho

@@ -7,8 +7,8 @@
 start:
 
 // 0x0000
-b _payload
-b _jump_hook
+b _pl_payload
+b _pl_jump_hook
 nop
 nop
 
@@ -27,16 +27,16 @@ nop
 nop
 
 // 0x0040
-_gprintf:
+_pl_gprintf:
 .quad 0x4040404040404040
 
-_gfsboot:
+_pl_gfsboot:
 .quad 0x4141414141414141
 
-_gjumpto:
+_pl_gjumpto:
 .quad 0x4242424242424242
 
-_gpanic:
+_pl_gpanic:
 .quad 0x4343434343434343
 
 // 0x0060 _rootdev

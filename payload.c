@@ -2,7 +2,6 @@
 #include <stdbool.h>
 
 #include "printf.h"
-#include "drivers/tz/tz.h"
 #include <common.h>
 #include <offsetfinder.h>
 
@@ -12,6 +11,8 @@ uint8_t* xargs_set = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x71);
 uint8_t* xfb_state = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x72);
 char* CommandLine = (char*)(PAYLOAD_BASE_ADDRESS + 0x73);
 char CommandLine_Temp[BOOT_LINE_LENGTH_iOS13];
+extern void stage3_exit_to_el1_image(void* boot_args, void* boot_entry_point);
+void pongo_entry(uint64_t* kernel_args, void* entryp, void (*exit_to_el1_image)(void* boot_args, void* boot_entry_point));
 uint16_t args_len_already;
 
 static void usage(void)
@@ -196,12 +197,6 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     printf("Built with: GCC %s\n", __VERSION__);
 #endif
     printf("Ruuning on %x\n", socnum);
-    tz_setup();
-    tz_command();
-    if (recfg_soc_setup() == 0) {
-        // recfg_cmd_dump("","");
-    }
-
     {
         uint32_t len = 0;
         dt_node_t* dev = dt_find(gDeviceTree, "chosen");
@@ -258,9 +253,11 @@ int jump_hook(void* boot_image, void* boot_args)
     if (*(uint8_t*)(boot_args + 8 + 7)) {
         // kernel
         payload_entry((uint64_t*)boot_args, boot_image);
+        pongo_entry((uint64_t*)boot_args, boot_image, stage3_exit_to_el1_image);
     } else {
         // hypv
         payload_entry(*(uint64_t**)(boot_args + 0x20), (void*)*(uint64_t*)(boot_args + 0x28));
+        pongo_entry(*(uint64_t**)(boot_args + 0x20), (void*)*(uint64_t*)(boot_args + 0x28), stage3_exit_to_el1_image);
     }
     
     return jumpto(boot_image, boot_args);

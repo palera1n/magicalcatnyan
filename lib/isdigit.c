@@ -1,3 +1,5 @@
+#include <common.h>
+
 int isdigit(c)
 int c;
 {

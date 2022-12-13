@@ -34,6 +34,7 @@
 
 #include <stdarg.h>
 #include <stddef.h>
+#include "common.h"
 typedef unsigned long long my_size_t;
 
 #ifdef __cplusplus
