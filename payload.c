@@ -177,7 +177,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     screen_puts("==================================");
     screen_puts("");
     screen_puts("Hello from magicalcatnyan!");
-    screen_puts("Originally written by dora2-iOS, with modifications from palera1n team");
+    screen_puts("Originally written by dora2ios, with modifications from palera1n team");
     screen_puts("Also thanks to pongoOS developers!");
     screen_puts("");
     screen_puts("==================================");
