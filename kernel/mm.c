@@ -134,8 +134,7 @@ static alloc_region_t* write_alloc_table(alloc_table_t* table, void* ptr, my_siz
 		return NULL;
 	} else return block;
 }
-#undef dprintf
-#define dprintf(...)
+
 void* malloc(my_size_t size) {
 	if (size == 0) panic("malloc(0)\n");
 	void* ret = NULL;
@@ -245,8 +244,7 @@ static alloc_table_t* find_prev_alloc_table(alloc_table_t* table) {
 	}
 	return current_alloc_table;
 }
-#undef dprintf
-#define dprintf(...) printf(__VA_ARGS__)
+
 void free(void* ptr) {
 	dprintf("free: about to free ptr 0x%p\n", ptr);
 	alloc_table_t* current_alloc_table = first_alloc_table;
