@@ -131,6 +131,12 @@ _pl_gpanic:
 .quad 0x4848484848484848
 .quad 0x4848484848484848
 
+.globl _pl_cache_clean_and_invalidate_page
+.align 4
+_pl_cache_clean_and_invalidate_page:
+mov x1, #0x80000
+mov x2, #0
+
 nop
 nop
 nop

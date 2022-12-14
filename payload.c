@@ -24,6 +24,7 @@ static void usage(void)
     printf("\txfb\t\t\t: flip/unflip xnu framebuffer state\n");
     printf("\txargs [boot cmdline]\t: set or clear xnu boot command line\n");
     printf("\tdefault_xargs \t\t: use the default xnu boot command line\n");
+    printf("\tcrash_el0 \t\t: Crash when in EL0\n");
     printf("\tfbinvert\t\t: invert boot framebuffer\n");
     printf("\tpeek <addr> <size>\t: dump memory\n");
     printf("\tpoke <addr> <uint64>\t: write <uint64> to <addr>\n");
@@ -61,6 +62,10 @@ int payload(int argc, struct cmd_arg *args)
             if (*xfb_state == 1) *xfb_state = 0;
             else *xfb_state = 1;
             printf("xfb_state = %u\n", *xfb_state);
+            return 0;
+        } else if (!strcmp(args[1].str, "crash_el0")) {
+            __asm__("mrs xzr, CurrentEL\n");
+            printf("we are NOT in EL0!\n");
             return 0;
         }
     } else if (argc == 3) {
@@ -250,14 +255,26 @@ int jump_hook(void* boot_image, void* boot_args)
     
     printf("-------- hello payload --------\n");
     
+    void* boot_image_p_copy = boot_image;
+    void* boot_args_p_copy = boot_args;
     if (*(uint8_t*)(boot_args + 8 + 7)) {
         // kernel
         payload_entry((uint64_t*)boot_args, boot_image);
-        pongo_entry((uint64_t*)boot_args, boot_image, stage3_exit_to_el1_image);
+        /*__asm__(
+            "mov x5, x30\n"
+            "ldr x0, =0x800000000\n"
+            "bl _pl_cache_clean_and_invalidate_page\n"
+            "mov x0, #0\n"
+            "svc #0\n"
+            "ic iallu\n"
+        );
+        printf("boot_args_p_copy ptr %p\n", boot_args_p_copy);
+        printf("boot_image_p_copy ptr %p\n", boot_image_p_copy);
+        pongo_entry((uint64_t*)boot_args_p_copy, boot_image_p_copy, stage3_exit_to_el1_image);*/
     } else {
         // hypv
         payload_entry(*(uint64_t**)(boot_args + 0x20), (void*)*(uint64_t*)(boot_args + 0x28));
-        pongo_entry(*(uint64_t**)(boot_args + 0x20), (void*)*(uint64_t*)(boot_args + 0x28), stage3_exit_to_el1_image);
+        /*pongo_entry(*(uint64_t**)(boot_args + 0x20), (void*)*(uint64_t*)(boot_args + 0x28), stage3_exit_to_el1_image);*/
     }
     
     return jumpto(boot_image, boot_args);
