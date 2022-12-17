@@ -9,7 +9,9 @@ char* rootdev = (char*)(PAYLOAD_BASE_ADDRESS + 0x60);
 uint8_t* invert_fb = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x70);
 uint8_t* xargs_set = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x71);
 uint8_t* xfb_state = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x72);
-char* CommandLine = (char*)(PAYLOAD_BASE_ADDRESS + 0x73);
+boot_args** gBootArgs_p = (boot_args**)(PAYLOAD_BASE_ADDRESS + 0x74);
+void** gEntryPoint_p = (void**)(PAYLOAD_BASE_ADDRESS + 0x7b);
+char* CommandLine = (char*)(PAYLOAD_BASE_ADDRESS + 0x84);
 char CommandLine_Temp[BOOT_LINE_LENGTH_iOS13];
 extern void stage3_exit_to_el1_image(void* boot_args, void* boot_entry_point);
 void pongo_entry(uint64_t* kernel_args, void* entryp, void (*exit_to_el1_image)(void* boot_args, void* boot_entry_point));
@@ -62,10 +64,6 @@ int payload(int argc, struct cmd_arg *args)
             if (*xfb_state == 1) *xfb_state = 0;
             else *xfb_state = 1;
             printf("xfb_state = %u\n", *xfb_state);
-            return 0;
-        } else if (!strcmp(args[1].str, "crash_el0")) {
-            __asm__("mrs xzr, CurrentEL\n");
-            printf("we are NOT in EL0!\n");
             return 0;
         }
     } else if (argc == 3) {
@@ -137,14 +135,29 @@ void flip_video_display() {
     }
 }
 
+__attribute__((naked))void el1_entry() {
+    __asm__(
+        "movz x18, 0x8, lsl 32\n"
+        "movk x18, 0x00F0, lsl 16\n"
+        "movk x18, 0x0010\n"
+        "movz x0, 0x3ff\n"
+        "movk x0, 0xfeec\n"
+        "svc 0x0\n"
+        "ret\n"
+    );
+}
+
 void payload_entry(uint64_t *kernel_args, void *entryp)
 {
-    
     gBootArgs = (boot_args*)kernel_args;
     gEntryPoint = entryp;
     gDeviceTree = (void*)((uint64_t)gBootArgs->deviceTreeP - gBootArgs->virtBase + gBootArgs->physBase);
     gIOBase = dt_get_u64_prop_i("arm-io", "ranges", 1);
-    gDevType = dt_get_prop("arm-io", "device_type", NULL);    
+    gDevType = dt_get_prop("arm-io", "device_type", NULL);
+
+    *gBootArgs_p = (boot_args*)kernel_args;
+    *gEntryPoint_p = entryp;
+
     size_t len = strlen(gDevType) - 3;
     len = len < 8 ? len : 8;
     strncpy(soc_name, gDevType, len);
@@ -182,7 +195,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     screen_puts("");
     screen_puts("==================================");
     screen_puts("");
-    screen_puts("Hello from magicalcatnyan!");
+    screen_puts("Welcome to EL0 stage2!");
     screen_puts("Originally written by dora2ios, with modifications from palera1n team");
     screen_puts("Also thanks to pongoOS developers!");
     screen_puts("");
@@ -246,7 +259,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
         gBootArgs->memSizeActual
     );
     printf("-------- bye payload --------\n");
-    
+    el1_entry();
 }
 
 int jump_hook(void* boot_image, void* boot_args)
@@ -255,30 +268,40 @@ int jump_hook(void* boot_image, void* boot_args)
     
     printf("-------- hello payload --------\n");
     
-    void* boot_image_p_copy = boot_image;
-    void* boot_args_p_copy = boot_args;
     if (*(uint8_t*)(boot_args + 8 + 7)) {
         // kernel
         payload_entry((uint64_t*)boot_args, boot_image);
-        /*__asm__(
-            "mov x5, x30\n"
-            "ldr x0, =0x800000000\n"
-            "bl _pl_cache_clean_and_invalidate_page\n"
-            "mov x0, #0\n"
-            "svc #0\n"
-            "ic iallu\n"
-        );
-        printf("boot_args_p_copy ptr %p\n", boot_args_p_copy);
-        printf("boot_image_p_copy ptr %p\n", boot_image_p_copy);
-        pongo_entry((uint64_t*)boot_args_p_copy, boot_image_p_copy, stage3_exit_to_el1_image);*/
     } else {
         // hypv
         payload_entry(*(uint64_t**)(boot_args + 0x20), (void*)*(uint64_t*)(boot_args + 0x28));
-        /*pongo_entry(*(uint64_t**)(boot_args + 0x20), (void*)*(uint64_t*)(boot_args + 0x28), stage3_exit_to_el1_image);*/
     }
-    
     return jumpto(boot_image, boot_args);
 }
+
+int svc_hook(uint64_t arg1,uint64_t arg2) {
+    iboot_func_load();
+    gBootArgs = *gBootArgs_p;
+    gEntryPoint = *gEntryPoint_p;
+    gDeviceTree = (void*)((uint64_t)gBootArgs->deviceTreeP - gBootArgs->virtBase + gBootArgs->physBase);
+    gIOBase = dt_get_u64_prop_i("arm-io", "ranges", 1);
+    gDevType = dt_get_prop("arm-io", "device_type", NULL);
+    socnum = 0x8015;
+    screen_init();
+    printf("Hello from EL1 stage2!\n");
+    printf("arg1 = %x, arg2 = %x\n", arg1, arg2);
+
+    if (*(uint8_t*)(gBootArgs + 8 + 7)) {
+        // kernel
+        pongo_entry((uint64_t*)gBootArgs, gEntryPoint, stage3_exit_to_el1_image);
+    } else {
+        // hypv
+        pongo_entry(*(uint64_t**)(gBootArgs + 0x20), (void*)*(uint64_t*)(gBootArgs + 0x28), stage3_exit_to_el1_image);
+    }
+    printf("????");
+    return jumpto(gBootArgs, gEntryPoint);
+}
+
+
 
 int main(void)
 {

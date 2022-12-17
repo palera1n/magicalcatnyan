@@ -9,7 +9,7 @@ int iboot_func_init(void)
         //memcpy(relocate_addr, load_addr, size)
         memcpy((void*)PAYLOAD_BASE_ADDRESS_T8015, (void*)0x801000000, 0x80000);
         
-        uint64_t iboot_base = 0x18001c000;
+        uint64_t iboot_base = 1;
         
         void* idata = (void *)(0x18001c000);
         size_t isize = *(uint64_t *)(idata + 0x308) - iboot_base;

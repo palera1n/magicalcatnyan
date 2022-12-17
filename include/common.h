@@ -48,9 +48,11 @@ typedef uint64_t my_size_t;
 #define font8x8_basic pl_font8x8_basic
 #define fsboot pl_fsboot
 #define gBootArgs pl_gBootArgs
+#define gBootArgs_p pl_gBootArgs_p
 #define gDevType pl_gDevType
 #define gDeviceTree pl_gDeviceTree
 #define gEntryPoint pl_gEntryPoint
+#define gEntryPoint_p pl_gEntryPoint_p
 #define gFramebuffer pl_gFramebuffer
 #define gFramebufferCopy pl_gFramebufferCopy
 #define gHeight pl_gHeight
@@ -97,6 +99,7 @@ typedef uint64_t my_size_t;
 #define insn_mov_imm_imm_64 pl_insn_mov_imm_imm_64
 #define insn_mov_imm_rd_64 pl_insn_mov_imm_rd_64
 #define invert_fb pl_invert_fb
+#define svc_hook pl_svc_hook
 #define iprintf pl_iprintf
 #define is_16k pl_is_16k
 #define isalpha pl_isalpha
@@ -157,6 +160,10 @@ typedef uint64_t my_size_t;
 #define xfb_state pl_xfb_state
 #define y_cursor pl_y_cursor
 
+#define IBOOT_SYSCALL_0 0x3FFFEE8
+#define IBOOT_SYSCALL_1 0x3FFFEE9
+#define IBOOT_SYSCALL_2 0x3FFFEEA
+#define IBOOT_SYSCALL_3 0x3FFFEEB
 
 #include "drivers/framebuffer/fb.h"
 #include "../printf.h"
