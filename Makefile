@@ -29,10 +29,10 @@ OBJECTS	= \
 		kpf/shellcode.S \
 		kernel/command.o \
 		kernel/lowlevel.o \
+		kernel/fakemm.o \
 		kernel/printf.o \
 		kernel/offsetfinder.o \
 		kernel/entry.o \
-		kernel/fakemm.o \
 		lib/memset.o \
 		lib/memmem.o \
 		lib/memmove.o \

@@ -5,6 +5,7 @@
 #include <common.h>
 #include <offsetfinder.h>
 
+const void* payload_baseaddr = PAYLOAD_BASE_ADDRESS;
 char* rootdev = (char*)(PAYLOAD_BASE_ADDRESS + 0x60);
 uint8_t* invert_fb = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x70);
 uint8_t* xargs_set = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x71);
