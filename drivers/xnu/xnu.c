@@ -320,7 +320,7 @@ uint32_t xnu_platform(void)
 struct segment_command_64* macho_get_segment(struct mach_header_64* header, const char* segname) {
     struct load_command* lc;
     lc = (struct load_command*)(header + 1);
-    for (uint32_t i = 0; i < header->ncmds; i++) {
+    for (int i = 0; i < header->ncmds; i++) {
         if (lc->cmd == LC_SEGMENT_64) {
             struct segment_command_64* seg = (struct segment_command_64*)lc;
             if (strcmp(seg->segname, segname) == 0) {
@@ -895,9 +895,9 @@ uint32_t* xnu_pf_maskmatch_emit(struct xnu_pf_maskmatch* patch, struct xnu_pf_pa
     }
 
     if (cap > 8) cap = 8;
-    uint32_t hi_entropy = -1;
+    int hi_entropy = -1;
     uint8_t highest_rating = 0;
-    for (uint32_t i=0; i<cap; i++) {
+    for (int i=0; i<cap; i++) {
         uint64_t cur_entropy = patch->pairs[i][0] ^ patch->pairs[i][1];
         uint8_t cur_rating = 0;
         bool last = true;
@@ -920,7 +920,7 @@ uint32_t* xnu_pf_maskmatch_emit(struct xnu_pf_maskmatch* patch, struct xnu_pf_pa
     }
 
     uint32_t jit_test[(4*2 + 4)];
-    for (uint32_t i=0; i<cap; i++) {
+    for (int i=0; i<cap; i++) {
         if (i == hi_entropy) {
             continue;
         }
@@ -961,7 +961,7 @@ uint32_t* xnu_pf_maskmatch_emit(struct xnu_pf_maskmatch* patch, struct xnu_pf_pa
         uint32_t insnc = (cmp_stub_stream - cmp_stub);
         cmp_stub_out -= insnc + 1;
         *insn_stream_end = cmp_stub_out;
-        for (uint32_t i=0; i < insnc; i++) {
+        for (int i=0; i < insnc; i++) {
             cmp_stub_out[i] = cmp_stub[i];
         }
 
@@ -985,7 +985,7 @@ uint32_t* xnu_pf_maskmatch_emit(struct xnu_pf_maskmatch* patch, struct xnu_pf_pa
         insn_stream_insert = xnu_pf_b_eq_emit(insn_stream_insert, prev_stub);
 
 
-        for (uint32_t i=0; i<cap; i++) {
+        for (int i=0; i<cap; i++) {
             if (linkage[i])
                 xnu_pf_b_ne_emit(linkage[i], insn_stream_insert);
         }

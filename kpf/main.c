@@ -869,7 +869,7 @@ void kpf_find_shellcode_area(xnu_pf_patchset_t* xnu_text_exec_patchset) {
     uint32_t count = (sandbox_shellcode_end - sandbox_shellcode) + (nvram_shc_end - nvram_shc) + (kdi_shc_end - kdi_shc) + (fsctl_shc_end - fsctl_shc);
     uint64_t matches[count];
     uint64_t masks[count];
-    for (uint32_t i=0; i<count; i++) {
+    for (int i=0; i<count; i++) {
         matches[i] = 0;
         masks[i] = 0xFFFFFFFF;
     }
@@ -980,7 +980,7 @@ bool vm_fault_enter_callback(struct xnu_pf_patch* patch, uint32_t* opcode_stream
     }
 
     uint32_t *wanted_addr = b_loc+1;
-    for (uint32_t i=2; i<20; i++) {
+    for (int i=2; i<20; i++) {
         uint32_t *try_loc = wanted_addr - i;
         // TBZ or CBZ
         if (((*try_loc|(i<<5))&0xFD07FFE0) == (0x34000000|i<<5)) {
@@ -2398,7 +2398,7 @@ void command_kpf() {
 
     xnu_pf_patchset_t* sandbox_patchset = xnu_pf_patchset_create(XNU_PF_ACCESS_32BIT);
     struct mach_header_64* sandbox_header = xnu_pf_get_kext_header(hdr, "com.apple.security.sandbox");
-    __unused xnu_pf_range_t* sandbox_text_exec_range = xnu_pf_section(sandbox_header, "__TEXT_EXEC", "__text");
+    xnu_pf_range_t* sandbox_text_exec_range = xnu_pf_section(sandbox_header, "__TEXT_EXEC", "__text");
     kpf_sandbox_kext_patches(sandbox_patchset);
     xnu_pf_emit(sandbox_patchset);
     xnu_pf_patchset_destroy(sandbox_patchset);
@@ -2518,7 +2518,7 @@ void command_kpf() {
     if (!vnode_put) panic("no vnode_put?");
     DEVLOG("Found vnode_put: 0x%llx", xnu_rebase_va(xnu_ptr_to_va(vnode_put)));
     if (!dyld_hook_addr) panic("no dyld_hook_addr?");
-    if (offsetof_p_flags == (uint32_t)-1) panic("no p_flags?");
+    if (offsetof_p_flags == -1) panic("no p_flags?");
     if (!found_vm_fault_enter) panic("no vm_fault_enter");
     if (!vfs_context_current) panic("missing patch: vfs_context_current");
     if (kmap_port_string_match && !found_convert_port_to_map) panic("missing patch: convert_port_to_map");
