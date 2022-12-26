@@ -7,11 +7,15 @@ SRC_ROOT = $(shell pwd)
 SUBDIRS = kernel lib drivers
 
 OBJCOPY	= /opt/homebrew/opt/binutils/bin/gobjcopy
-DRIVERS = plat dt framebuffer
+DRIVERS = plat dt framebuffer xnu
 
 CFLAGS	= -I$(SRC_ROOT)/include -I$(SRC_ROOT)/apple-include -I$(SRC_ROOT) -DDER_TAG_SIZE=8 -target arm64-apple-ios12.0 -O0
 CFLAGS	+= -Wall -Wextra -Wno-unused-parameter -Wno-incompatible-library-redeclaration -fno-stack-protector -nostdlib -static -nostdlibinc
 LDFLAGS	=  -Wl,-preload -Wl,-no_uuid -Wl,-e,start -Wl,-order_file,sym_order.txt -Wl,-image_base,0x100000000 -Wl,-sectalign,__DATA,__common,0x8 -Wl,-segalign,0x4000
+
+ifneq ($(DEV_BUILD),)
+CFLAGS += -DDEV_BUILD=$(DEV_BUILD)
+endif
 
 OBJ = payload
 
@@ -19,14 +23,21 @@ OBJECTS	= \
 		drivers/dt/dtree.o \
 		drivers/dt/dtree_getprop.o \
 		drivers/framebuffer/fb.o \
+		drivers/xnu/xnu.o \
+		drivers/xnu/xnu.S.o \
+		kpf/main.c \
+		kpf/shellcode.S \
 		kernel/command.o \
 		kernel/lowlevel.o \
 		kernel/printf.o \
 		kernel/offsetfinder.o \
 		kernel/entry.o \
+		kernel/fakemm.o \
 		lib/memset.o \
 		lib/memmem.o \
 		lib/memmove.o \
+		lib/memcmp.o \
+		lib/strstr.o \
 		lib/strcmp.o \
 		lib/strlen.o \
 		lib/strcpy.o \
@@ -40,7 +51,10 @@ OBJECTS	= \
 		lib/strtoull.o \
 		lib/strcat.o \
 		lib/puts.o \
-		lib/bzero.o
+		lib/bzero.o \
+		lib/strtoul.o \
+		lib/errno.o \
+		lib/strtoimax.o
 
 export DRIVERS CC CFLAGS
 
@@ -60,11 +74,8 @@ $(SUBDIRS):
 newlib:
 	$(MAKE) -C pongoOS/newlib all
 
-pongo:
-	$(MAKE) -C pongoOS build/libpongo.a
-
-payload_%.o: $(SUBDIRS) newlib pongo
-	$(CC) -DPAYLOAD_$* pongoOS/build/libpongo.a pongoOS/newlib/build/libc.a payload.c drivers/plat/$*.o -DBUILDING_PAYLOAD $(OBJECTS) $(CFLAGS) $(LDFLAGS) -o $(OBJ)_$*.o
+payload_%.o: $(SUBDIRS)
+	$(CC) -DPAYLOAD_$* payload.c drivers/plat/$*.o -DBUILDING_PAYLOAD $(OBJECTS) $(CFLAGS) $(LDFLAGS) -o $(OBJ)_$*.o
 
 payload_%.bin: payload_%.o vmacho
 	./vmacho -fM 0x80000 $(OBJ)_$*.o $(OBJ)_$*.bin
@@ -72,7 +83,6 @@ payload_%.bin: payload_%.o vmacho
 clean:
 	find . -name '*.bin' -type f -delete
 	find . -name '*.o' -type f -delete
-	$(MAKE) -C pongoOS clean
 
 distclean: clean
 	rm -f vmacho

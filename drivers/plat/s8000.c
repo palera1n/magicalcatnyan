@@ -54,5 +54,5 @@ void iboot_func_load(void)
     iprintf = (printf_t)offsetBase[0];
     fsboot  = (fsboot_t)offsetBase[1];
     jumpto  = (jumpto_t)offsetBase[2];
-    real_panic   = (panic_t)offsetBase[3];
+    panic   = (panic_t)offsetBase[3];
 }

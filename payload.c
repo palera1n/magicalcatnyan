@@ -16,11 +16,15 @@ char CommandLine_Temp[BOOT_LINE_LENGTH_iOS13];
 extern void stage3_exit_to_el1_image(void* boot_args, void* boot_entry_point);
 void pongo_entry(uint64_t* kernel_args, void* entryp, void (*exit_to_el1_image)(void* boot_args, void* boot_entry_point));
 uint16_t args_len_already;
+void command_kpf();
+void kpf_banner();
 
-int svc_hook();
-int jump_hook();
-void elevate_to_el1();
-
+#if DEV_BUILD
+const char build_style[] = "DEVELOPMENT";
+#else
+const char build_style[] = "RELEASE";
+#endif
+#if DEV_BUILD
 static void usage(void)
 {
     printf("usage: %s <cmd>\n", "go");
@@ -35,6 +39,7 @@ static void usage(void)
     printf("\tpeek <addr> <size>\t: dump memory\n");
     printf("\tpoke <addr> <uint64>\t: write <uint64> to <addr>\n");
 }
+#endif
 
 int payload(int argc, struct cmd_arg *args)
 {
@@ -81,6 +86,7 @@ int payload(int argc, struct cmd_arg *args)
             return 0;
         }
     } else if (argc == 4) {
+#if DEV_BUILD
         if (!strcmp(args[1].str, "peek")) {
             peek(args[2].str, args[3].str);
             return 0;
@@ -88,6 +94,7 @@ int payload(int argc, struct cmd_arg *args)
             poke(args[2].str, args[3].str);
             return 0;
         }
+#endif
     }
 
     if (argc > 1 && (!strcmp(args[1].str, "xargs"))) {
@@ -110,11 +117,12 @@ int payload(int argc, struct cmd_arg *args)
         printf("set xnu boot arg cmdline to [%s]\n", CommandLine);
         return 0;
     }
-
+#if DEV_BUILD
     if (argc == 1 || (argc > 2 && strcmp(args[1].str, "help"))) { 
         printf("unknown command/ bad arg count\n");
     }
     usage();
+#endif
     return 0;
 }
 
@@ -147,8 +155,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     gIOBase = dt_get_u64_prop_i("arm-io", "ranges", 1);
     gDevType = dt_get_prop("arm-io", "device_type", NULL);
 
-    *gBootArgs_p = (boot_args*)kernel_args;
-    *gEntryPoint_p = entryp;
+    dprintf("gEntryPoint = %x\n", gEntryPoint);
 
     size_t len = strlen(gDevType) - 3;
     len = len < 8 ? len : 8;
@@ -185,13 +192,11 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     screen_puts("");
     screen_puts("");
     screen_puts("");
-    screen_puts("==================================");
-    screen_puts("");
-    screen_puts("Welcome to EL0 stage2!");
-    screen_puts("Originally written by dora2ios, with modifications from palera1n team");
-    screen_puts("Also thanks to pongoOS developers!");
-    screen_puts("");
-    screen_puts("==================================");
+    printf("\n==================================\n\n");
+    printf("magicalcatnyan for %x, palera1n team, dora2ios\n\n", socnum);
+    printf("BUILD_STYLE: %s\n\n", build_style);
+    printf("Also thanks to pongoOS developers!\n\n");
+    printf("==================================\n\n");
     screen_mark_banner();
     
     pmgr_init();
@@ -202,11 +207,10 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
 
     printf("Booted by: %s\n", (const char*)dt_get_prop("chosen", "firmware-version", NULL));
 #ifdef __clang__
-    printf("Built with: Clang %s\n", __clang_version__);
+    dprintf("Built with: Clang %s\n", __clang_version__);
 #else
-    printf("Built with: GCC %s\n", __VERSION__);
+    dprintf("Built with: GCC %s\n", __VERSION__);
 #endif
-    printf("Ruuning on %x\n", socnum);
     {
         uint32_t len = 0;
         dt_node_t* dev = dt_find(gDeviceTree, "chosen");
@@ -224,7 +228,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     if (*xargs_set == 1) strcpy(gBootArgs->CommandLine, CommandLine);
     if (*xfb_state == 1) flip_video_display();
     printf("xnu boot arg cmdline: [%s]\n", gBootArgs->CommandLine);
-    printf("gBootArgs:\n"
+    dprintf("gBootArgs:\n"
         "\tRevision: 0x%x\n"
         "\tVersion: 0x%x\n"
         "\tvirtBase: 0x%llx\n"
@@ -250,42 +254,16 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
         gBootArgs->bootFlags,
         gBootArgs->memSizeActual
     );
-    printf("-------- bye payload --------\n");
-    printf("pl_svc_hook = %p\n", svc_hook);
-    printf("pl_jump_hook = %p\n", jump_hook);
-    printf("elevate_to_el1 = %p\n", elevate_to_el1);
-    printf("pongo_entry = %p\n", pongo_entry);
-}
-
-int svc_hook() {
-    iboot_func_load();
-    printf("hello from EL1 stage2!\n");
-    // re-init because we can't expect the processor state to be sane
-    gBootArgs = *gBootArgs_p;
-    gEntryPoint = *gEntryPoint_p;
-    gDeviceTree = (void*)((uint64_t)gBootArgs->deviceTreeP - gBootArgs->virtBase + gBootArgs->physBase);
-    gIOBase = dt_get_u64_prop_i("arm-io", "ranges", 1);
-    gDevType = dt_get_prop("arm-io", "device_type", NULL);
-    socnum = 0x8015;
-    screen_init();
-    printf("Hello from EL1 stage2!\n");
-
-    if (*(uint8_t*)(gBootArgs + 8 + 7)) {
-        // kernel
-        pongo_entry((uint64_t*)gBootArgs, gEntryPoint, stage3_exit_to_el1_image);
-    } else {
-        // hypv
-        pongo_entry(*(uint64_t**)(gBootArgs + 0x20), (void*)*(uint64_t*)(gBootArgs + 0x28), stage3_exit_to_el1_image);
-    }
-    printf("????");
-    return jumpto(gBootArgs, gEntryPoint);
+    kpf_banner();
+    command_kpf();
+    iprintf("======== End of magicalcatnyan serial output. ========\n");
 }
 
 int jump_hook(void* boot_image, void* boot_args)
 {
     iboot_func_load();
     
-    printf("-------- hello payload --------\n");
+    dprintf("-------- hello payload --------\n");
     
     if (*(uint8_t*)(boot_args + 8 + 7)) {
         // kernel
@@ -294,17 +272,6 @@ int jump_hook(void* boot_image, void* boot_args)
         // hypv
         payload_entry(*(uint64_t**)(boot_args + 0x20), (void*)*(uint64_t*)(boot_args + 0x28));
     }
-    printf("About to elevate to EL1...\n");
-    __asm__(
-        "mov x5, x30\n"
-        "ldr x0, =0x800000000\n"
-        "bl _pl_cache_clean_and_invalidate_page\n"
-        "mov x0, #0\n"
-        "svc #0\n"
-        "ic iallu\n"
-    );
-    printf("Elevated to EL1!\n");
-    svc_hook();
     return jumpto(boot_image, boot_args);
 }
 

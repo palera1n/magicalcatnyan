@@ -50,15 +50,6 @@ static pmgr_dev_t *gPMGRdev = NULL;
 #define WDT_SYS_RST (*(volatile uint32_t*)(gWDTBase + 0x14))
 #define WDT_SYS_CTL (*(volatile uint32_t*)(gWDTBase + 0x1c))
 
-int panic(const char* panic_string) {
-    if (screen_is_initialized == true) {
-        screen_write("panic: ");
-        screen_puts(panic_string);
-    }
-    while(1) {};
-    return real_panic(panic_string);
-}
-
 void wdt_disable()
 {
     if (!gWDTBase) return;

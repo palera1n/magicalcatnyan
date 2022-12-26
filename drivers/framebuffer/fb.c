@@ -212,6 +212,7 @@ void screen_invert() {
 uint32_t gLogoBitmap[32] = { 0x0, 0xa00, 0x400, 0x5540, 0x7fc0, 0x3f80, 0x3f80, 0x1f00, 0x1f00, 0x1f00, 0x3f80, 0xffe0, 0x3f80, 0x3f80, 0x3f83, 0x103f9f, 0x18103ffb, 0xe3fffd5, 0x1beabfab, 0x480d7fd5, 0xf80abfab, 0x480d7fd5, 0x1beabfab, 0xe3fffd5, 0x18107ffb, 0x107fdf, 0x7fc3, 0xffe0, 0xffe0, 0xffe0, 0x1fff0, 0x1fff0 };
 
 void screen_init() {
+    dprintf("Initializing screen\n");
     if (screen_is_initialized == true) return;
     gRowPixels = gBootArgs->Video.v_rowBytes >> 2;
     uint16_t width = gWidth = gBootArgs->Video.v_width;
@@ -231,7 +232,9 @@ void screen_init() {
     }
     // map_range(0xfb0000000ULL, fbbase - fboff, fbsize, 3, 1, true);
     gFramebuffer = (uint32_t*)(fbbase);
-    gFramebufferCopy = (uint32_t*)(gBootArgs->topOfKernelData + 1);
+    // gFramebufferCopy = (uint32_t*)(gBootArgs->topOfKernelData + 1);
+    gFramebufferCopy = malloc(fbsize);
+    dprintf("framebuffer copy region malloc succeed");
 
     height &= 0xfff0;
     scale_factor = 2;
