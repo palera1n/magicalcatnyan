@@ -2401,6 +2401,7 @@ void command_kpf() {
     xnu_pf_range_t* sandbox_text_exec_range = xnu_pf_section(sandbox_header, "__TEXT_EXEC", "__text");
     kpf_sandbox_kext_patches(sandbox_patchset);
     xnu_pf_emit(sandbox_patchset);
+    xnu_pf_apply(sandbox_text_exec_range, sandbox_patchset);
     xnu_pf_patchset_destroy(sandbox_patchset);
 
     // Do this unconditionally on DEV_BUILD
