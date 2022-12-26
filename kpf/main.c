@@ -2805,6 +2805,11 @@ void command_kpf() {
         puts("KPF: Disabled snapshot temporarily");
     }
 
+    char *launchdString = (char*)memmem((unsigned char *)text_cstring_range->cacheable_base, text_cstring_range->size, (uint8_t *)"/sbin/launchd", strlen("/sbin/launchd"));
+    if (!launchdString) panic("no launchd string");
+    strncpy(launchdString, gLaunchdString, sizeof("/sbin/launchd"));
+    printf("KPF: changed launchd string to %s\n", launchdString);
+
     struct kerninfo *info = NULL;
 #if 0
     if (ramdisk_buf) {

@@ -5,13 +5,12 @@
 #include <common.h>
 #include <offsetfinder.h>
 
-const void* payload_baseaddr = (void*)PAYLOAD_BASE_ADDRESS;
+const uint64_t payload_baseaddr = PAYLOAD_BASE_ADDRESS;
 char* rootdev = (char*)(PAYLOAD_BASE_ADDRESS + 0x60);
 uint8_t* invert_fb = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x70);
 uint8_t* xargs_set = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x71);
 uint8_t* xfb_state = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x72);
-boot_args** gBootArgs_p = (boot_args**)(PAYLOAD_BASE_ADDRESS + 0x74);
-void** gEntryPoint_p = (void**)(PAYLOAD_BASE_ADDRESS + 0x7b);
+char* gLaunchdString = (char*)(payload_baseaddr + 0x74);;
 char* CommandLine = (char*)(PAYLOAD_BASE_ADDRESS + 0x84);
 char CommandLine_Temp[BOOT_LINE_LENGTH_iOS13];
 extern void stage3_exit_to_el1_image(void* boot_args, void* boot_entry_point);
@@ -35,8 +34,8 @@ static void usage(void)
     printf("\txfb\t\t\t: flip/unflip xnu framebuffer state\n");
     printf("\txargs [boot cmdline]\t: set or clear xnu boot command line\n");
     printf("\tdefault_xargs \t\t: use the default xnu boot command line\n");
-    printf("\tcrash_el0 \t\t: Crash when in EL0\n");
     printf("\tfbinvert\t\t: invert boot framebuffer\n");
+    printf("\tlaunchd <path>\t\t: set launchd path\n");
     printf("\tpeek <addr> <size>\t: dump memory\n");
     printf("\tpoke <addr> <uint64>\t: write <uint64> to <addr>\n");
 }
@@ -57,8 +56,9 @@ int payload(int argc, struct cmd_arg *args)
     {
         if(iboot_func_init()) return -1;
     }
-    
+
     printf("-------- payload start --------\n");
+    gLaunchdString = (char*)(payload_baseaddr + 0x74);
 
     if (argc == 2) {
         if(!strcmp(args[1].str, "fbinvert")) {
@@ -84,6 +84,14 @@ int payload(int argc, struct cmd_arg *args)
             }
             strcpy(rootdev, args[2].str);
             fsboot();
+            return 0;
+        } else if(!strcmp(args[1].str, "launchd")) {
+            if (strlen(args[2].str) > sizeof("/sbin/launchd") - 1) {
+                printf("launchd string too long (max %llu got %llu)\n", sizeof("/sbin/launchd") - 1, strlen(args[2].str));
+                return -1;
+            }
+            strncpy(gLaunchdString, args[2].str, sizeof("/sbin/launchd"));
+            printf("set launchd string: %s\n", gLaunchdString);
             return 0;
         }
     } else if (argc == 4) {
@@ -155,6 +163,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     gDeviceTree = (void*)((uint64_t)gBootArgs->deviceTreeP - gBootArgs->virtBase + gBootArgs->physBase);
     gIOBase = dt_get_u64_prop_i("arm-io", "ranges", 1);
     gDevType = dt_get_prop("arm-io", "device_type", NULL);
+    gLaunchdString = (char*)(payload_baseaddr + 0x74);
 
     size_t len = strlen(gDevType) - 3;
     len = len < 8 ? len : 8;

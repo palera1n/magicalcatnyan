@@ -1,5 +1,5 @@
 
-.globl gprintf
+.globl _gprintf
 .align 2
 
 .globl start
@@ -55,12 +55,13 @@ gpanic:
 // 0x0073 reserved
 .byte 0x00
 
-// 0x0074 pl_gBootArgs_p
-gBootArgs_p:
-.quad 0x1337133713371337
-// 0x007b pl_gEntryPoint_p
-gEntryPoint_p:
-.quad 0xdeaddeaddeaddead
+// 0x0074 launchd_string
+_gLaunchdString:
+.ascii "/sbin/launchd\0"
+
+// 0x0072 padding
+.byte 0x00
+.byte 0x00
 
 // 0x0084 CommandLine
 .quad 0x4848484848484848

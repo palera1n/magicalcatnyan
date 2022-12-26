@@ -45,6 +45,7 @@ struct cmd_arg {
 #define DT_KEY_LEN              0x20
 #define BOOT_LINE_LENGTH_iOS12  0x100
 #define BOOT_LINE_LENGTH_iOS13  0x260
+#define LAUNCHD_STRING "/sbin/launchd"
 
 bool is_16k();
 
@@ -129,8 +130,10 @@ panic_t panic;
 // main
 int iboot_func_init(void);
 void iboot_func_load(void);
-extern const void* payload_baseaddr;
+extern const uint64_t payload_baseaddr;
 void mem_stat();
+extern char* gLaunchdString;
+extern char** gLaunchdString_p;
 
 #if DEV_BUILD
 #define dprintf(...) printf(__VA_ARGS__)
