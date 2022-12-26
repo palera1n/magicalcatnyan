@@ -2421,7 +2421,6 @@ void command_kpf() {
 
         kpf_find_iomemdesc(xnu_text_exec_patchset);
     }
-    dprintf("hmm 5\n");
     // TODO
     //struct mach_header_64* accessory_header = xnu_pf_get_kext_header(hdr, "com.apple.iokit.IOAccessoryManager");
 

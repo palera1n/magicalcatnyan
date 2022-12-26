@@ -131,6 +131,10 @@ void _putchar(char character)
   iprintf(s);
 }
 
+void putchar(char character) {
+  _putchar(character);
+}
+
 // output function type
 typedef void (*out_fct_type)(char character, void* buffer, my_size_t idx, my_size_t maxlen);
 
