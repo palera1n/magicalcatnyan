@@ -36,6 +36,7 @@ typedef uint64_t my_size_t;
 #define dt_parse pl_dt_parse
 #define dt_prop pl_dt_prop
 #define dt_prop_cb pl_dt_prop_cb
+#define elevate_to_el1 pl_elevate_to_el1
 #define fctprintf pl_fctprintf
 #define find_jumpto_bl pl_find_jumpto_bl
 #define find_jumpto_func pl_find_jumpto_func
@@ -159,11 +160,6 @@ typedef uint64_t my_size_t;
 #define xargs_set pl_xargs_set
 #define xfb_state pl_xfb_state
 #define y_cursor pl_y_cursor
-
-#define IBOOT_SYSCALL_0 0x3FFFEE8
-#define IBOOT_SYSCALL_1 0x3FFFEE9
-#define IBOOT_SYSCALL_2 0x3FFFEEA
-#define IBOOT_SYSCALL_3 0x3FFFEEB
 
 #include "drivers/framebuffer/fb.h"
 #include "../printf.h"

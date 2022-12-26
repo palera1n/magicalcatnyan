@@ -17,6 +17,10 @@ extern void stage3_exit_to_el1_image(void* boot_args, void* boot_entry_point);
 void pongo_entry(uint64_t* kernel_args, void* entryp, void (*exit_to_el1_image)(void* boot_args, void* boot_entry_point));
 uint16_t args_len_already;
 
+int svc_hook();
+int jump_hook();
+void elevate_to_el1();
+
 static void usage(void)
 {
     printf("usage: %s <cmd>\n", "go");
@@ -135,18 +139,6 @@ void flip_video_display() {
     }
 }
 
-__attribute__((naked))void el1_entry() {
-    __asm__(
-        "movz x18, 0x8, lsl 32\n"
-        "movk x18, 0x00F0, lsl 16\n"
-        "movk x18, 0x0010\n"
-        "movz x0, 0x3ff\n"
-        "movk x0, 0xfeec\n"
-        "svc 0x0\n"
-        "ret\n"
-    );
-}
-
 void payload_entry(uint64_t *kernel_args, void *entryp)
 {
     gBootArgs = (boot_args*)kernel_args;
@@ -259,7 +251,34 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
         gBootArgs->memSizeActual
     );
     printf("-------- bye payload --------\n");
-    el1_entry();
+    printf("pl_svc_hook = %p\n", svc_hook);
+    printf("pl_jump_hook = %p\n", jump_hook);
+    printf("elevate_to_el1 = %p\n", elevate_to_el1);
+    printf("pongo_entry = %p\n", pongo_entry);
+}
+
+int svc_hook() {
+    iboot_func_load();
+    printf("hello from EL1 stage2!\n");
+    // re-init because we can't expect the processor state to be sane
+    gBootArgs = *gBootArgs_p;
+    gEntryPoint = *gEntryPoint_p;
+    gDeviceTree = (void*)((uint64_t)gBootArgs->deviceTreeP - gBootArgs->virtBase + gBootArgs->physBase);
+    gIOBase = dt_get_u64_prop_i("arm-io", "ranges", 1);
+    gDevType = dt_get_prop("arm-io", "device_type", NULL);
+    socnum = 0x8015;
+    screen_init();
+    printf("Hello from EL1 stage2!\n");
+
+    if (*(uint8_t*)(gBootArgs + 8 + 7)) {
+        // kernel
+        pongo_entry((uint64_t*)gBootArgs, gEntryPoint, stage3_exit_to_el1_image);
+    } else {
+        // hypv
+        pongo_entry(*(uint64_t**)(gBootArgs + 0x20), (void*)*(uint64_t*)(gBootArgs + 0x28), stage3_exit_to_el1_image);
+    }
+    printf("????");
+    return jumpto(gBootArgs, gEntryPoint);
 }
 
 int jump_hook(void* boot_image, void* boot_args)
@@ -275,33 +294,19 @@ int jump_hook(void* boot_image, void* boot_args)
         // hypv
         payload_entry(*(uint64_t**)(boot_args + 0x20), (void*)*(uint64_t*)(boot_args + 0x28));
     }
+    printf("About to elevate to EL1...\n");
+    __asm__(
+        "mov x5, x30\n"
+        "ldr x0, =0x800000000\n"
+        "bl _pl_cache_clean_and_invalidate_page\n"
+        "mov x0, #0\n"
+        "svc #0\n"
+        "ic iallu\n"
+    );
+    printf("Elevated to EL1!\n");
+    svc_hook();
     return jumpto(boot_image, boot_args);
 }
-
-int svc_hook(uint64_t arg1,uint64_t arg2) {
-    iboot_func_load();
-    gBootArgs = *gBootArgs_p;
-    gEntryPoint = *gEntryPoint_p;
-    gDeviceTree = (void*)((uint64_t)gBootArgs->deviceTreeP - gBootArgs->virtBase + gBootArgs->physBase);
-    gIOBase = dt_get_u64_prop_i("arm-io", "ranges", 1);
-    gDevType = dt_get_prop("arm-io", "device_type", NULL);
-    socnum = 0x8015;
-    screen_init();
-    printf("Hello from EL1 stage2!\n");
-    printf("arg1 = %x, arg2 = %x\n", arg1, arg2);
-
-    if (*(uint8_t*)(gBootArgs + 8 + 7)) {
-        // kernel
-        pongo_entry((uint64_t*)gBootArgs, gEntryPoint, stage3_exit_to_el1_image);
-    } else {
-        // hypv
-        pongo_entry(*(uint64_t**)(gBootArgs + 0x20), (void*)*(uint64_t*)(gBootArgs + 0x28), stage3_exit_to_el1_image);
-    }
-    printf("????");
-    return jumpto(gBootArgs, gEntryPoint);
-}
-
-
 
 int main(void)
 {

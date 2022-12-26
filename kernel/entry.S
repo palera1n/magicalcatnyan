@@ -1,5 +1,11 @@
 
-.globl _gprintf
+.globl _pl_gprintf
+.align 2
+
+.globl _pl_cache_clean_and_invalidate_page
+.align 2
+
+.globl _pl_elevate_to_el1
 .align 2
 
 .globl start
@@ -9,11 +15,11 @@ start:
 // 0x0000
 b _pl_payload
 b _pl_jump_hook
-nop
+b .
 nop
 
 // 0x0010
-b .
+nop
 nop
 nop
 nop
@@ -40,7 +46,6 @@ _pl_gpanic:
 .quad 0x4343434343434343
 
 // 0x0060 _rootdev
-
 .quad 0x4444444444444444
 .quad 0x4444444444444444
 
@@ -140,6 +145,47 @@ pl_gEntryPoint_p:
 .quad 0x4848484848484848
 .quad 0x4848484848484848
 .quad 0x4848484848484848
+
+// 0x2e4
+
+_pl_elevate_to_el1:
+cmp x18, #2351
+b.eq _three
+mov x5, x30
+ldr x0, =0x800000000
+bl _pl_cache_clean_and_invalidate_page
+mov x0, #0
+mov x18, #2351
+svc #0
+nop
+nop
+nop
+nop
+
+// 0x314
+_three:
+nop
+nop
+nop
+nop
+ic iallu
+b _pl_svc_hook
+b .
+
+_pl_cache_clean_and_invalidate_page:
+mov x1, #0x80000
+mov x2, #0
+
+_one:
+cmp x1, x2
+b.eq _two
+dc civac, x0
+add x0, x0, #0x40
+add x2, x2, #0x40
+b _one
+
+_two:
+ret
 
 nop
 nop
