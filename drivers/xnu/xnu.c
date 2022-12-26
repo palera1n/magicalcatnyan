@@ -1196,7 +1196,7 @@ void xnu_pf_apply_64(xnu_pf_range_t* range, xnu_pf_patchset_t* patchset) {
     }
 }
 void xnu_pf_apply(xnu_pf_range_t* range, xnu_pf_patchset_t* patchset) {
-    if (patchset->jit_matcher) {
+    if (/*patchset->jit_matcher*/0) {
         // use JIT fastpath
 
         void (*jit_match)(void* stream, void* stream_end);

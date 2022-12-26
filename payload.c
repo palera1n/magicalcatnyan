@@ -192,10 +192,10 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     screen_puts("");
     screen_puts("");
     screen_puts("");
-    printf("\n==================================\n\n");
-    printf("magicalcatnyan for %x, palera1n team, dora2ios\n\n", socnum);
-    printf("BUILD_STYLE: %s\n\n", build_style);
-    printf("Also thanks to pongoOS developers!\n\n");
+    printf("\n==================================\n::\n");
+    printf(":: magicalcatnyan for %x, palera1n team, dora2ios\n::\n", socnum);
+    printf("::\tBUILD_STYLE: %s\n\n", build_style);
+    printf(":\tAlso thanks to pongoOS developers!\n::\n");
     printf("==================================\n\n");
     screen_mark_banner();
     

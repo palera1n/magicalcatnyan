@@ -4,7 +4,7 @@
 
 uint64_t malloc_base = NULL;
 uint64_t jit_alloc_base = NULL;
-#define JIT_SIZE 8192
+#define JIT_SIZE 32768
 #define JIT_OFFSET 0x2e4
 #define JIT_BASE (PAYLOAD_BASE_ADDRESS + JIT_OFFSET)
 
