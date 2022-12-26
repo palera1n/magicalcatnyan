@@ -2400,13 +2400,8 @@ void command_kpf() {
     struct mach_header_64* sandbox_header = xnu_pf_get_kext_header(hdr, "com.apple.security.sandbox");
     xnu_pf_range_t* sandbox_text_exec_range = xnu_pf_section(sandbox_header, "__TEXT_EXEC", "__text");
     kpf_sandbox_kext_patches(sandbox_patchset);
-    dprintf("hmm 1\n");
     xnu_pf_emit(sandbox_patchset);
-    dprintf("hmm 2\n");
-    xnu_pf_apply(sandbox_text_exec_range, sandbox_patchset);
-    dprintf("hmm 3\n");
     xnu_pf_patchset_destroy(sandbox_patchset);
-    dprintf("hmm 4\n");
 
     // Do this unconditionally on DEV_BUILD
 #if DEV_BUILD

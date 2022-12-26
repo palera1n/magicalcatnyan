@@ -129,6 +129,7 @@ panic_t panic;
 int iboot_func_init(void);
 void iboot_func_load(void);
 extern const void* payload_baseaddr;
+void mem_stat();
 
 #if DEV_BUILD
 #define dprintf(...) printf(__VA_ARGS__)

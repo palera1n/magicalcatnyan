@@ -196,7 +196,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     printf("\n==================================\n::\n");
     printf(":: magicalcatnyan for %x, palera1n team, dora2ios\n::\n", socnum);
     printf("::\tBUILD_STYLE: %s\n\n", build_style);
-    printf(":\tAlso thanks to pongoOS developers!\n::\n");
+    printf("::\tAlso thanks to pongoOS developers!\n::\n");
     printf("==================================\n\n");
     screen_mark_banner();
     
@@ -257,6 +257,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     );
     kpf_banner();
     command_kpf();
+    mem_stat();
     iprintf("======== End of magicalcatnyan serial output. ========\n");
 }
 

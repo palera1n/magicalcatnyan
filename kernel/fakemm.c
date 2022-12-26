@@ -2,8 +2,8 @@
 
 uint64_t malloc_base = NULL;
 uint64_t jit_alloc_base = NULL;
-#define JIT_SIZE 65536
-#define JIT_BASE ((uint64_t)payload_baseaddr + 458752) 
+#define JIT_SIZE 32768
+#define JIT_BASE ((uint64_t)payload_baseaddr + 491520) 
 
 void *malloc(my_size_t size) {
 	void* mem = NULL;
@@ -34,3 +34,9 @@ void *jit_alloc(my_size_t count, my_size_t size) {
 }
 
 void jit_free(void* ptr) {}
+
+void mem_stat() {
+	printf("Memory usage: %llu bytes\n", (malloc_base - (gBootArgs->topOfKernelData + 1)));
+	printf("JIT memory usage: %llu bytes\n", jit_alloc_base - JIT_BASE);
+	return;
+}
