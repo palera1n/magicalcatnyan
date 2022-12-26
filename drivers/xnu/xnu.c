@@ -293,7 +293,6 @@ struct mach_header_64* xnu_header(void) {
         entryp -= 0x1000;
     }
     xnu_header_cached = (struct mach_header_64*) entryp;
-    dprintf("xnu_header_cached = %p\n", xnu_header_cached);
     return xnu_header_cached;
 }
 
@@ -474,7 +473,6 @@ struct mach_header_64* xnu_pf_get_kext_header(struct mach_header_64* kheader, co
                 end_dict = strstr(end_dict+1, "</dict>");
             }
 
-            dprintf("last_dict = %p", last_dict);
             const char* ident = memmem(last_dict, end_dict - last_dict, "CFBundleIdentifier", strlen("CFBundleIdentifier"));
             if (ident) {
                 const char* value = strstr(ident, "<string>");
@@ -573,7 +571,6 @@ xnu_pf_range_t* xnu_pf_all_x(struct mach_header_64* header) {
 }
 xnu_pf_patchset_t* xnu_pf_patchset_create(uint8_t pf_accesstype) {
     xnu_pf_patchset_t* r = malloc(sizeof(xnu_pf_patchset_t));
-    dprintf("xnu_pf_patchset_t malloc succeed, access_type = %u\n", pf_accesstype);
     r->patch_head = NULL;
     r->jit_matcher = NULL;
     r->accesstype = pf_accesstype;

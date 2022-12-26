@@ -28,6 +28,17 @@
 .globl _sandbox_shellcode_ptrs
 .globl _sandbox_shellcode_end
 .globl _sandbox_shellcode_setuid_patch
+
+.globl _sb_vnode_bl
+.globl _sb_vfs_bl
+.globl _sb_orig_b
+
+.globl _dyld_hook_shellcode
+
+.globl _dyld_hook_vfs_bl
+.globl _dyld_hook_vnode_lookup_bl
+.globl _dyld_hook_vnode_put_bl
+
 .globl _dyld_hook_shellcode
 .align 2
 _sandbox_shellcode:
@@ -93,6 +104,7 @@ stp x0, x1, [sp, #0x10]
 stp x2, x3, [sp, #0x20]
 stp x4, x5, [sp, #0x30]
 stp x6, x7, [sp, #0x40]
+_sb_vfs_bl:
 ldr x16, vfs
 blr x16 // getting current vfs context
 mov x2, x0
@@ -101,6 +113,7 @@ add x1, sp, #0x80
 mov w8, #0x380
 stp xzr, x8, [x1]
 stp xzr, xzr, [x1, 0x10]
+_sb_vnode_bl:
 ldr x16, vnode // getting vnode attributes
 blr x16
 cbnz x0, pre_execve_hook$orig$epilog // failed so we just jump out
@@ -133,6 +146,7 @@ ldp x6, x7, [sp, #0x40]
 ldp x29, x30, [sp]
 add sp, sp, #0x400
 pre_execve_hook$orig:
+_sb_orig_b:
 ldr x16, orig
 br x16
 
@@ -148,16 +162,19 @@ br x16
 _dyld_hook_shellcode:
 sub sp, sp, #0x20
 stp x29, x30, [sp]
+_dyld_hook_vfs_bl:
 ldr x16, vfs
 blr x16
 mov x3, x0
 adr x0, cr_dyld_path
 mov w1, #0
 add x2, sp, #0x10 // &vp
+_dyld_hook_vnode_lookup_bl:
 ldr x16, vnode_lookup
 blr x16
 cbnz x0, dyld_hook$missing
 ldr x0, [sp, #0x10] // vp
+_dyld_hook_vnode_put_bl:
 ldr x16, vnode_put
 blr x16
 adr x0, cr_dyld_path
