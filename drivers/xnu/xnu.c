@@ -284,19 +284,16 @@ struct mach_header_64* xnu_header_cached;
 struct mach_header_64* xnu_header(void) {
     if (xnu_header_cached) return xnu_header_cached;
     uint64_t entryp = (uint64_t) gEntryPoint;
-    dprintf("Hit 1: entryp = %x\n", entryp);
-    entryp -= 0x800000000 - kCacheableView;
+    //*entryp -= 0x800000000 - kCacheableView;
     entryp &= ~0xfff;
-    dprintf("Hit 2: entryp = %x\n", entryp);
     while (1) {
-        dprintf("Hit n: entryp = %x\n", entryp);
         if (*(uint32_t*) entryp == MH_MAGIC_64) {
             break;
         }
         entryp -= 0x1000;
     }
     xnu_header_cached = (struct mach_header_64*) entryp;
-    dprintf("xnu_header_cached = %p", xnu_header_cached);
+    dprintf("xnu_header_cached = %p\n", xnu_header_cached);
     return xnu_header_cached;
 }
 
@@ -359,20 +356,20 @@ bool xnu_is_slid(struct mach_header_64* header) {
 uint64_t xnu_slide_hdr_va(struct mach_header_64* header, uint64_t hdr_va) {
     if (xnu_is_slid(header)) return hdr_va;
 
-    uint64_t text_va_base = ((uint64_t) header) - kCacheableView + 0x800000000ULL - gBootArgs->physBase + gBootArgs->virtBase;
+    uint64_t text_va_base = ((uint64_t) header) /*- kCacheableView + 0x800000000ULL */- gBootArgs->physBase + gBootArgs->virtBase;
     uint64_t slide = text_va_base - 0xFFFFFFF007004000ULL;
     return hdr_va + slide;
 }
 uint64_t xnu_slide_value(struct mach_header_64* header) {
-    uint64_t text_va_base = ((uint64_t) header) - kCacheableView + 0x800000000ULL - gBootArgs->physBase + gBootArgs->virtBase;
+    uint64_t text_va_base = ((uint64_t) header) /*- kCacheableView + 0x800000000ULL */- gBootArgs->physBase + gBootArgs->virtBase;
     uint64_t slide = text_va_base - 0xFFFFFFF007004000ULL;
     return slide;
 }
 void* xnu_va_to_ptr(uint64_t va) {
-    return (void*)(va - gBootArgs->virtBase + gBootArgs->physBase - 0x800000000ULL + kCacheableView);
+    return (void*)(va - gBootArgs->virtBase + gBootArgs->physBase /*-0x800000000ULL + kCacheableView*/);
 }
 uint64_t xnu_ptr_to_va(void* ptr) {
-    return ((uint64_t)ptr) - kCacheableView + 0x800000000ULL - gBootArgs->physBase + gBootArgs->virtBase;
+    return ((uint64_t)ptr) /*- kCacheableView + 0x800000000ULL */- gBootArgs->physBase + gBootArgs->virtBase;
 }
 
 // NOTE: iBoot-based rebase only applies to main XNU.
@@ -416,7 +413,7 @@ xnu_pf_range_t* xnu_pf_range_from_va(uint64_t va, uint64_t size) {
     xnu_pf_range_t* range = malloc(sizeof(xnu_pf_range_t));
     range->va = va;
     range->size = size;
-    range->cacheable_base = ((uint8_t*)(va - gBootArgs->virtBase + gBootArgs->physBase - 0x800000000ULL + kCacheableView));
+    range->cacheable_base = ((uint8_t*)(va - gBootArgs->virtBase + gBootArgs->physBase /*-0x800000000ULL + kCacheableView*/));
     range->device_base = ((uint8_t*)(va - gBootArgs->virtBase + gBootArgs->physBase));
     return range;
 }
@@ -477,7 +474,7 @@ struct mach_header_64* xnu_pf_get_kext_header(struct mach_header_64* kheader, co
                 end_dict = strstr(end_dict+1, "</dict>");
             }
 
-
+            dprintf("last_dict = %p", last_dict);
             const char* ident = memmem(last_dict, end_dict - last_dict, "CFBundleIdentifier", strlen("CFBundleIdentifier"));
             if (ident) {
                 const char* value = strstr(ident, "<string>");

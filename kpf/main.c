@@ -163,7 +163,7 @@ extern uint32_t nvram_shc[], nvram_shc_end[];
 extern uint32_t kdi_shc[], kdi_shc_orig[], kdi_shc_get[], kdi_shc_addr[], kdi_shc_size[], kdi_shc_new[], kdi_shc_set[], kdi_shc_end[];
 extern uint32_t fsctl_shc[], fsctl_shc_vnode_open[], fsctl_shc_stolen_slowpath[], fsctl_shc_orig_bl[], fsctl_shc_vnode_close[], fsctl_shc_stolen_fastpath[], fsctl_shc_orig_b[], fsctl_shc_end[];
 
-#if DEV_BUILD
+#if 1
 struct {
     int darwinMajor;
     int darwinMinor;
@@ -171,6 +171,7 @@ struct {
     int xnuMajor;
 } kernelVersion;
 void kpf_kernel_version_init(xnu_pf_range_t* text_const_range) {
+
     const char kernelVersionStringMarker[] = "@(#)VERSION: Darwin Kernel Version ";
     const char *kernelVersionString = memmem(text_const_range->cacheable_base, text_const_range->size, kernelVersionStringMarker, strlen(kernelVersionStringMarker));
     if (kernelVersionString == NULL) {
