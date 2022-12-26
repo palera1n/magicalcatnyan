@@ -156,8 +156,6 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     gIOBase = dt_get_u64_prop_i("arm-io", "ranges", 1);
     gDevType = dt_get_prop("arm-io", "device_type", NULL);
 
-    dprintf("gEntryPoint = %x\n", gEntryPoint);
-
     size_t len = strlen(gDevType) - 3;
     len = len < 8 ? len : 8;
     strncpy(soc_name, gDevType, len);
@@ -195,7 +193,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     screen_puts("");
     printf("\n==================================\n::\n");
     printf(":: magicalcatnyan for %x, palera1n team, dora2ios\n::\n", socnum);
-    printf("::\tBUILD_STYLE: %s\n\n", build_style);
+    printf("::\tBUILD_STYLE: %s\n::\n", build_style);
     printf("::\tAlso thanks to pongoOS developers!\n::\n");
     printf("==================================\n\n");
     screen_mark_banner();
@@ -212,6 +210,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
 #else
     dprintf("Built with: GCC %s\n", __VERSION__);
 #endif
+
     {
         uint32_t len = 0;
         dt_node_t* dev = dt_find(gDeviceTree, "chosen");
@@ -226,37 +225,18 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
         sprintf(val, str);
         printf("set new entry: %016llx: %s \n", (uint64_t)val, rootdev);
     }
+
     if (*xargs_set == 1) strcpy(gBootArgs->CommandLine, CommandLine);
     if (*xfb_state == 1) flip_video_display();
     printf("xnu boot arg cmdline: [%s]\n", gBootArgs->CommandLine);
-    dprintf("gBootArgs:\n"
-        "\tRevision: 0x%x\n"
-        "\tVersion: 0x%x\n"
-        "\tvirtBase: 0x%llx\n"
-        "\tphysBase 0x%llx\n"
-        "\tmemSize: 0x%llx\n"
-        "\ttopOfKernelData: 0x%llx\n"
-        "\tmachineType: 0x%x\n"
-        "\tdeviceTreeP: 0x%llx\n"
-        "\tdeviceTreeLength: 0x%x\n"
-        "\tCommandLine: %s\n"
-        "\tbootFlags: %llx\n"
-        "\tmemSizeActual: %llx\n",
-        gBootArgs->Revision,
-        gBootArgs->Version,
-        gBootArgs->virtBase,
-        gBootArgs->physBase,
-        gBootArgs->memSize,
-        gBootArgs->topOfKernelData,
-        gBootArgs->machineType,
-        (uint64_t)gBootArgs->deviceTreeP,
-        gBootArgs->deviceTreeLength,
-        gBootArgs->CommandLine,
-        gBootArgs->bootFlags,
-        gBootArgs->memSizeActual
-    );
+    tz_setup();
+#if DEV_BUILD
+    tz_command();
+    log_bootargs();
+#endif
     kpf_banner();
     command_kpf();
+    xnu_boot();
     mem_stat();
     iprintf("======== End of magicalcatnyan serial output. ========\n");
 }

@@ -4,10 +4,10 @@ CFLAGS_FOR_BUILD += -Os -Wall -Wextra
 LDFLAGS_FOR_BUILD ?= -flto=thin
 
 SRC_ROOT = $(shell pwd)
-SUBDIRS = kernel lib drivers
+SUBDIRS = kernel lib drivers kpf
 
 OBJCOPY	= /opt/homebrew/opt/binutils/bin/gobjcopy
-DRIVERS = plat dt framebuffer xnu
+DRIVERS = plat dt framebuffer xnu tz
 
 CFLAGS	= -I$(SRC_ROOT)/include -I$(SRC_ROOT)/apple-include -I$(SRC_ROOT) -DDER_TAG_SIZE=8 -target arm64-apple-ios12.0 -Os -ffreestanding
 CFLAGS	+= -Wall -Wextra -Wno-unused-parameter -Wno-incompatible-library-redeclaration -fno-stack-protector -nostdlib -static -nostdlibinc
@@ -20,19 +20,20 @@ endif
 OBJ = payload
 
 OBJECTS	= \
-		drivers/dt/dtree.o \
-		drivers/dt/dtree_getprop.o \
-		drivers/framebuffer/fb.o \
-		drivers/xnu/xnu.o \
-		drivers/xnu/xnu.S.o \
-		kpf/main.c \
-		kpf/shellcode.S \
 		kernel/command.o \
 		kernel/lowlevel.o \
 		kernel/fakemm.o \
 		kernel/printf.o \
 		kernel/offsetfinder.o \
 		kernel/entry.o \
+		kpf/main.o \
+		kpf/shellcode.S.o \
+		drivers/dt/dtree.o \
+		drivers/dt/dtree_getprop.o \
+		drivers/framebuffer/fb.o \
+		drivers/xnu/xnu.o \
+		drivers/xnu/xnu.S.o \
+		drivers/tz/tz.o \
 		lib/memset.o \
 		lib/memmem.o \
 		lib/memmove.o \

@@ -87,6 +87,7 @@ typedef struct
         } \
     } while(0)
 
+#if DEV_BUILD
 static int dt_cbn(void *a, dt_node_t *node)
 {
     if(a != node)
@@ -233,7 +234,8 @@ static int dt_cbp(void *a, dt_node_t *node, int depth, const char *key, void *va
     }
     return retval;
 }
-void log_bootargs(const char *cmd, char *args)
+
+void log_bootargs()
 {
     printf("gBootArgs:\n"
         "\tRevision: 0x%x\n"
@@ -262,6 +264,7 @@ void log_bootargs(const char *cmd, char *args)
         gBootArgs->memSizeActual
     );
 }
+
 void log_dtree(const char *cmd, char *args)
 {
     //struct boot_args* cBootArgs = (struct boot_args*)((uint64_t)gBootArgs - 0x800000000 + kCacheableView);
@@ -275,7 +278,7 @@ void log_dtree(const char *cmd, char *args)
 
     dt_parse(gDeviceTree, 0, NULL, &dt_cbn, gDeviceTree, &dt_cbp, &arg);
 }
-
+#endif
 
 extern void* ramdisk_buf;
 extern uint32_t ramdisk_size;

@@ -72,6 +72,9 @@ typedef struct xnu_pf_patchset {
     bool is_required;
 } xnu_pf_patchset_t;
 
+#if DEV_BUILD
+extern void log_bootargs();
+#endif
 extern uint64_t xnu_slide_hdr_va(struct mach_header_64* header, uint64_t hdr_va);
 extern uint64_t xnu_slide_value(struct mach_header_64* header);
 extern struct mach_header_64* xnu_header(void);

@@ -7,6 +7,7 @@ typedef uint64_t my_size_t;
 
 #include "drivers/framebuffer/fb.h"
 #include "drivers/xnu/xnu.h"
+#include "drivers/tz/tz.h"
 #include "../printf.h"
 
 extern uint32_t socnum;
