@@ -17,6 +17,10 @@ ifneq ($(DEV_BUILD),)
 CFLAGS += -DDEV_BUILD=$(DEV_BUILD)
 endif
 
+MAGICALCATNYAN_VERSION               ?= 1.0.0~b1-$(shell git rev-parse HEAD | cut -c1-8)
+
+CFLAGS += -DMAGICALCATNYAN_VERSION='"$(MAGICALCATNYAN_VERSION)"'
+
 OBJ = payload
 
 OBJECTS	= \

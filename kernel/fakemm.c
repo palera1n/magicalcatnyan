@@ -36,7 +36,7 @@ void *jit_alloc(my_size_t count, my_size_t size) {
 void jit_free(void* ptr) {}
 
 void mem_stat() {
-	printf("Memory usage: %llu bytes\n", (malloc_base - (gBootArgs->topOfKernelData + 1)));
-	printf("JIT memory usage: %llu bytes\n", jit_alloc_base - JIT_BASE);
+	dprintf("Memory usage: %llu bytes\n", (malloc_base - (gBootArgs->topOfKernelData + 1)));
+	dprintf("JIT memory usage: %llu bytes\n", jit_alloc_base - JIT_BASE);
 	return;
 }
