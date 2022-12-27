@@ -9,15 +9,16 @@ SUBDIRS = kernel lib drivers kpf
 OBJCOPY	= /opt/homebrew/opt/binutils/bin/gobjcopy
 DRIVERS = plat dt framebuffer xnu tz
 
-CFLAGS	= -I$(SRC_ROOT)/include -I$(SRC_ROOT)/apple-include -I$(SRC_ROOT) -DDER_TAG_SIZE=8 -target arm64-apple-ios12.0 -Og -g -ffreestanding
+CFLAGS	= -I$(SRC_ROOT)/include -I$(SRC_ROOT)/apple-include -I$(SRC_ROOT) -DDER_TAG_SIZE=8 -target arm64-apple-ios12.0 -Os -g -ffreestanding
 CFLAGS	+= -Wall -Wextra -Wno-unused-parameter -Wno-incompatible-library-redeclaration -fno-stack-protector -nostdlib -static -nostdlibinc
-LDFLAGS	=  -Wl,-preload -Wl,-no_uuid -Wl,-e,start -Wl,-order_file,sym_order.txt -Wl,-image_base,0x100000000 -Wl,-sectalign,__DATA,__common,0x8 -Wl,-segalign,0x4000
+LDFLAGS	=  -Wl,-preload -Wl,-no_uuid -Wl,-e,start -Wl,-order_file,sym_order.txt -Wl,-sectalign,__DATA,__common,0x8 -Wl,-segalign,0x4000
 
 ifneq ($(DEV_BUILD),)
 CFLAGS += -DDEV_BUILD=$(DEV_BUILD)
 endif
 
 MAGICALCATNYAN_VERSION               ?= 1.0.0~b1-$(shell git rev-parse HEAD | cut -c1-8)
+P = )
 
 CFLAGS += -DMAGICALCATNYAN_VERSION='"$(MAGICALCATNYAN_VERSION)"'
 # CFLAGS += -DXNU_PF_DUMP_JIT -DDEBUG_DOUNMOUNT -DDEBUG_MM -DXNU_PF_DEBUG_SPAM
@@ -80,7 +81,7 @@ newlib:
 	$(MAKE) -C pongoOS/newlib all
 
 payload_%.o: $(SUBDIRS)
-	$(CC) -DPAYLOAD_$* payload.c drivers/plat/$*.o -DBUILDING_PAYLOAD $(OBJECTS) $(CFLAGS) $(LDFLAGS) -o $(OBJ)_$*.o
+	$(CC) -DPAYLOAD_$* -Wl,-image_base,$(shell if [ "$*" = "t8015" ]; then echo 0x800F00000; else echo 0x800700000; fi) payload.c drivers/plat/$*.o -DBUILDING_PAYLOAD $(OBJECTS) $(CFLAGS) $(LDFLAGS) -o $(OBJ)_$*.o
 
 payload_%.bin: payload_%.o vmacho
 	./vmacho -fM 0x80000 $(OBJ)_$*.o $(OBJ)_$*.bin
