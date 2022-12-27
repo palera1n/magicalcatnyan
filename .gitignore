@@ -8,3 +8,5 @@ txt
 *.o
 boot
 a9rwx.s
+*.dSYM
+
