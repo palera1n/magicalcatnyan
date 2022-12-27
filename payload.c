@@ -10,7 +10,8 @@ char* rootdev = (char*)(PAYLOAD_BASE_ADDRESS + 0x60);
 uint8_t* invert_fb = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x70);
 uint8_t* xargs_set = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x71);
 uint8_t* xfb_state = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x72);
-char* gLaunchdString = (char*)(payload_baseaddr + 0x74);;
+uint8_t* skip_md0_patch = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x73);
+char* gLaunchdString = (char*)(PAYLOAD_BASE_ADDRESS + 0x74);;
 char* CommandLine = (char*)(PAYLOAD_BASE_ADDRESS + 0x84);
 char CommandLine_Temp[BOOT_LINE_LENGTH_iOS13];
 extern void stage3_exit_to_el1_image(void* boot_args, void* boot_entry_point);
@@ -35,6 +36,7 @@ static void usage(void)
     printf("\txargs [boot cmdline]\t: set or clear xnu boot command line\n");
     printf("\tdefault_xargs \t\t: use the default xnu boot command line\n");
     printf("\tfbinvert\t\t: invert boot framebuffer\n");
+    printf("\trestore_mode \t\t: toggle md0 patches\n");
     printf("\tlaunchd <path>\t\t: set launchd path\n");
     printf("\tpeek <addr> <size>\t: dump memory\n");
     printf("\tpoke <addr> <uint64>\t: write <uint64> to <addr>\n");
@@ -58,7 +60,6 @@ int payload(int argc, struct cmd_arg *args)
     }
 
     printf("-------- payload start --------\n");
-    gLaunchdString = (char*)(payload_baseaddr + 0x74);
 
     if (argc == 2) {
         if(!strcmp(args[1].str, "fbinvert")) {
@@ -74,6 +75,11 @@ int payload(int argc, struct cmd_arg *args)
             if (*xfb_state == 1) *xfb_state = 0;
             else *xfb_state = 1;
             printf("xfb_state = %u\n", *xfb_state);
+            return 0;
+        } else if(!strcmp(args[1].str, "restore_mode")) {
+            if (*skip_md0_patch == 1) *skip_md0_patch = 0;
+            else *skip_md0_patch = 1;
+            printf("skip_md0_patch = %u\n", *skip_md0_patch);
             return 0;
         }
     } else if (argc == 3) {
@@ -163,7 +169,6 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     gDeviceTree = (void*)((uint64_t)gBootArgs->deviceTreeP - gBootArgs->virtBase + gBootArgs->physBase);
     gIOBase = dt_get_u64_prop_i("arm-io", "ranges", 1);
     gDevType = dt_get_prop("arm-io", "device_type", NULL);
-    gLaunchdString = (char*)(payload_baseaddr + 0x74);
 
     size_t len = strlen(gDevType) - 3;
     len = len < 8 ? len : 8;

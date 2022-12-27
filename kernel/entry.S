@@ -52,8 +52,8 @@ gpanic:
 // 0x0072 xfb_state
 .byte 0x47
 
-// 0x0073 reserved
-.byte 0x00
+// 0x0073 skip_md0_patch
+.byte 0x49
 
 // 0x0074 launchd_string
 _gLaunchdString:

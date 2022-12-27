@@ -12,6 +12,7 @@ typedef uint64_t my_size_t;
 
 extern uint32_t socnum;
 extern bool screen_is_initialized;
+extern uint8_t* skip_md0_patch;
 
 #ifndef NULL
 #define NULL ((void*)0)

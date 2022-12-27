@@ -2425,12 +2425,13 @@ void command_kpf() {
     // TODO
     //struct mach_header_64* accessory_header = xnu_pf_get_kext_header(hdr, "com.apple.iokit.IOAccessoryManager");
 
-    xnu_pf_patchset_t* kext_text_exec_patchset = xnu_pf_patchset_create(XNU_PF_ACCESS_32BIT);
-    kpf_md0_patches(kext_text_exec_patchset);
-    xnu_pf_emit(kext_text_exec_patchset);
-    xnu_pf_apply_each_kext(hdr, kext_text_exec_patchset);
-    xnu_pf_patchset_destroy(kext_text_exec_patchset);
-
+    if (*skip_md0_patch != 1) {
+        xnu_pf_patchset_t* kext_text_exec_patchset = xnu_pf_patchset_create(XNU_PF_ACCESS_32BIT);
+        kpf_md0_patches(kext_text_exec_patchset);
+        xnu_pf_emit(kext_text_exec_patchset);
+        xnu_pf_apply_each_kext(hdr, kext_text_exec_patchset);
+        xnu_pf_patchset_destroy(kext_text_exec_patchset);
+    } else puts("KPF: Entering restore mode, skipping md0 patches");
 
     xnu_pf_range_t* text_exec_range = xnu_pf_section(hdr, "__TEXT_EXEC", "__text");
     struct mach_header_64* first_kext = xnu_pf_get_first_kext(hdr);
