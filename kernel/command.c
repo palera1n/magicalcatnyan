@@ -93,7 +93,7 @@ void bzero_command(char* addr_str, char* size_str) {
   void* addr = (void*)strtoull(addr_str, NULL, 0);
   my_size_t size = (my_size_t)strtoull(size_str, NULL, 0);
   printf("addr = 0x%p, size = %llu\n", addr, size);
-  bzero(size, addr);
+  bzero(addr, size);
   return;
 }
 #endif
