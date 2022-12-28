@@ -20,7 +20,7 @@ else
 CFLAGS += -Os
 endif
 
-MAGICALCATNYAN_VERSION               ?= 1.0.0~b1-$(shell git rev-parse HEAD | cut -c1-8)
+MAGICALCATNYAN_VERSION               ?= 1.0.0~b2-$(shell git rev-parse HEAD | cut -c1-8)
 P = )
 
 CFLAGS += -DMAGICALCATNYAN_VERSION='"$(MAGICALCATNYAN_VERSION)"'
