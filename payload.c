@@ -7,15 +7,15 @@
 
 const uint64_t payload_baseaddr = PAYLOAD_BASE_ADDRESS;
 char* rootdev = (char*)(PAYLOAD_BASE_ADDRESS + 0x60);
-uint8_t* invert_fb = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x70);
 uint8_t* xargs_set = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x71);
 uint8_t* xfb_state = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x72);
+#if DEV_BUILD
 uint8_t* skip_md0_patch = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x73);
+uint8_t* invert_fb = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x70);
+#endif
 char* gLaunchdString = (char*)(PAYLOAD_BASE_ADDRESS + 0x74);;
 char* CommandLine = (char*)(PAYLOAD_BASE_ADDRESS + 0x84);
 char CommandLine_Temp[BOOT_LINE_LENGTH_iOS13];
-extern void stage3_exit_to_el1_image(void* boot_args, void* boot_entry_point);
-void pongo_entry(uint64_t* kernel_args, void* entryp, void (*exit_to_el1_image)(void* boot_args, void* boot_entry_point));
 uint16_t args_len_already;
 void command_kpf();
 void kpf_banner();
@@ -40,6 +40,7 @@ static void usage(void)
     printf("\tlaunchd <path>\t\t: set launchd path\n");
     printf("\tpeek <addr> <size>\t: dump memory\n");
     printf("\tpoke <addr> <uint64>\t: write <uint64> to <addr>\n");
+    printf("\tbzero <addr> <size>\t: zero memory of <size> at addr\n");
 }
 #endif
 
@@ -48,8 +49,10 @@ int payload(int argc, struct cmd_arg *args)
     if(*(uint32_t*)PAYLOAD_BASE_ADDRESS == 0)
     {
         if(iboot_func_init()) return -1;
-        printf("-------- relocated --------\n");
+        dprintf("-------- relocated --------\n");
+#if DEV_BUILD
         *invert_fb = 0;
+#endif
         *xargs_set = 0;
         *xfb_state = 0;
         return 0;
@@ -59,33 +62,36 @@ int payload(int argc, struct cmd_arg *args)
         if(iboot_func_init()) return -1;
     }
 
-    printf("-------- payload start --------\n");
+    dprintf("-------- payload start --------\n");
 
     if (argc == 2) {
+#if DEV_BUILD
         if(!strcmp(args[1].str, "fbinvert")) {
             if (*invert_fb == 1) *invert_fb = 0;
             else *invert_fb = 1;
-            printf("invert_fb = %u\n", *invert_fb);
+            dprintf("invert_fb = %u\n", *invert_fb);
             return 0;
         } else if (!strcmp(args[1].str, "default_xargs")) {
             *xargs_set = 0;
-            printf("using default xnu boot cmdline\n");
-            return 0;
-        } else if(!strcmp(args[1].str, "xfb")) {
-            if (*xfb_state == 1) *xfb_state = 0;
-            else *xfb_state = 1;
-            printf("xfb_state = %u\n", *xfb_state);
+            dprintf("using default xnu boot cmdline\n");
             return 0;
         } else if(!strcmp(args[1].str, "restore_mode")) {
             if (*skip_md0_patch == 1) *skip_md0_patch = 0;
             else *skip_md0_patch = 1;
-            printf("skip_md0_patch = %u\n", *skip_md0_patch);
+            dprintf("skip_md0_patch = %u\n", *skip_md0_patch);
             return 0;
-        }
+        } else
+#endif
+        if(!strcmp(args[1].str, "xfb")) {
+            if (*xfb_state == 1) *xfb_state = 0;
+            else *xfb_state = 1;
+            dprintf("xfb_state = %u\n", *xfb_state);
+            return 0;
+        } 
     } else if (argc == 3) {
         if (!strcmp(args[1].str, "boot")) {
             if (strlen(args[2].str) > 19) {
-                puts("rootdev too long");
+                dprintf("rootdev too long\n");
                 return -1;
             }
             strcpy(rootdev, args[2].str);
@@ -97,7 +103,7 @@ int payload(int argc, struct cmd_arg *args)
                 return -1;
             }
             strncpy(gLaunchdString, args[2].str, sizeof("/sbin/launchd"));
-            printf("set launchd string: %s\n", gLaunchdString);
+            dprintf("set launchd string: %s\n", gLaunchdString);
             return 0;
         }
     } else if (argc == 4) {
@@ -108,6 +114,8 @@ int payload(int argc, struct cmd_arg *args)
         } else if (!strcmp(args[1].str, "poke")) {
             poke(args[2].str, args[3].str);
             return 0;
+        } else if (!strcmp(args[1].str, "bzero")) {
+            bzero_command(args[2].str, args[3].str);
         }
 #endif
     }
@@ -128,8 +136,8 @@ int payload(int argc, struct cmd_arg *args)
         }
         strcpy(CommandLine, CommandLine_Temp);
         *xargs_set = 1;
-        if (argc <= 2) printf("cleared xnu boot arg cmdline, use default_xargs to use the default ones\n");
-        printf("set xnu boot arg cmdline to [%s]\n", CommandLine);
+        if (argc <= 2) dprintf("cleared xnu boot arg cmdline, use default_xargs to use the default ones\n");
+        dprintf("set xnu boot arg cmdline to [%s]\n", CommandLine);
         return 0;
     }
 #if DEV_BUILD
@@ -195,16 +203,20 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     }
     screen_init();
 
+#if DEV_BUILD
     if (*invert_fb == 1) {
         screen_invert();
     }
+#endif
 
+#if PAYLOAD_t8015
     screen_puts("");
     screen_puts("");
     screen_puts("");
     screen_puts("");
     screen_puts("");
     screen_puts("");
+#endif
     printf("\n==================================\n::\n");
     printf(":: magicalcatnyan for %x, palera1n team, dora2ios\n::\n", socnum);
     printf("::\tBUILD_TAG: %s\n::\n", MAGICALCATNYAN_VERSION);
@@ -240,7 +252,6 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
         sprintf(val, str);
         printf("set new entry: %016llx: %s \n", (uint64_t)val, rootdev);
     }
-
     if (*xargs_set == 1) strcpy(gBootArgs->CommandLine, CommandLine);
     if (*xfb_state == 1) flip_video_display();
     printf("xnu boot arg cmdline: [%s]\n", gBootArgs->CommandLine);

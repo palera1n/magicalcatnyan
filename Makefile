@@ -9,12 +9,15 @@ SUBDIRS = kernel lib drivers kpf
 OBJCOPY	= /opt/homebrew/opt/binutils/bin/gobjcopy
 DRIVERS = plat dt framebuffer xnu tz
 
-CFLAGS	= -I$(SRC_ROOT)/include -I$(SRC_ROOT)/apple-include -I$(SRC_ROOT) -DDER_TAG_SIZE=8 -target arm64-apple-ios12.0 -Os -g -ffreestanding
+CFLAGS	= -I$(SRC_ROOT)/include -I$(SRC_ROOT)/apple-include -I$(SRC_ROOT) -DDER_TAG_SIZE=8 -target arm64-apple-ios12.0 -g -ffreestanding -flto=thin
 CFLAGS	+= -Wall -Wextra -Wno-unused-parameter -Wno-incompatible-library-redeclaration -fno-stack-protector -nostdlib -static -nostdlibinc
 LDFLAGS	=  -Wl,-preload -Wl,-no_uuid -Wl,-e,start -Wl,-order_file,sym_order.txt -Wl,-sectalign,__DATA,__common,0x8 -Wl,-segalign,0x4000
 
 ifneq ($(DEV_BUILD),)
-CFLAGS += -DDEV_BUILD=$(DEV_BUILD)
+CFLAGS += -DDEV_BUILD=$(DEV_BUILD) -Og
+OBJECTS = kernel/command.o
+else
+CFLAGS += -Os
 endif
 
 MAGICALCATNYAN_VERSION               ?= 1.0.0~b1-$(shell git rev-parse HEAD | cut -c1-8)
@@ -24,8 +27,7 @@ CFLAGS += -DMAGICALCATNYAN_VERSION='"$(MAGICALCATNYAN_VERSION)"'
 # CFLAGS += -DXNU_PF_DUMP_JIT -DDEBUG_DOUNMOUNT -DDEBUG_MM -DXNU_PF_DEBUG_SPAM
 OBJ = payload
 
-OBJECTS	= \
-		kernel/command.o \
+OBJECTS	+= \
 		kernel/lowlevel.o \
 		kernel/fakemm.o \
 		kernel/printf.o \

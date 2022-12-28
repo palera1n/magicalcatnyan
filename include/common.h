@@ -174,6 +174,7 @@ intmax_t strtoimax(const char *nptr, char **endptr, int base);
 // pongo
 #if DEV_BUILD
 char* command_tokenize(char* str, unsigned int strbufsz);
+void bzero_command(char* addr_str, char* size_str);
 #endif
 void wdt_disable();
 void wdt_enable();
