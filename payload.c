@@ -116,6 +116,7 @@ int payload(int argc, struct cmd_arg *args)
             return 0;
         } else if (!strcmp(args[1].str, "bzero")) {
             bzero_command(args[2].str, args[3].str);
+            return 0;
         }
 #endif
     }
