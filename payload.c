@@ -19,6 +19,7 @@ char CommandLine_Temp[BOOT_LINE_LENGTH_iOS13];
 uint16_t args_len_already;
 void command_kpf();
 void kpf_banner();
+extern void crash();
 
 #if DEV_BUILD
 const char build_style[] = "DEVELOPMENT";
@@ -36,6 +37,7 @@ static void usage(void)
     printf("\txargs [boot cmdline]\t: set or clear xnu boot command line\n");
     printf("\tdefault_xargs \t\t: use the default xnu boot command line\n");
     printf("\tfbinvert\t\t: invert boot framebuffer\n");
+    printf("\tcrash\t\t\t: Crash iBoot\n");
     printf("\trestore_mode \t\t: toggle md0 patches\n");
     printf("\tlaunchd <path>\t\t: set launchd path\n");
     printf("\tpeek <addr> <size>\t: dump memory\n");
@@ -80,6 +82,9 @@ int payload(int argc, struct cmd_arg *args)
             else *skip_md0_patch = 1;
             dprintf("skip_md0_patch = %u\n", *skip_md0_patch);
             return 0;
+        } else if(!strcmp(args[1].str, "crash")) {
+            crash();
+            return -1;
         } else
 #endif
         if(!strcmp(args[1].str, "xfb")) {

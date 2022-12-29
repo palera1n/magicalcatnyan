@@ -4,6 +4,7 @@
 
 .globl start
 .align 4
+
 start:
 
 // 0x0000
@@ -142,6 +143,37 @@ _gLaunchdString:
 .quad 0x4848484848484848
 
 // 0x2e4
+#if DEV_BUILD
+.globl _crash
+.align 4
+
+_crash:
+mov x5, x30
+ldr x0, =0x800000000
+bl _cache_clean_and_invalidate_page
+mov x0, #0
+svc #0
+ic iallu
+nop
+nop
+b .
+ret
+
+_cache_clean_and_invalidate_page:
+mov x1, #0x80000
+mov x2, #0
+
+_one:
+cmp x1, x2
+b.eq _two
+dc civac, x0
+add x0, x0, #0x40
+add x2, x2, #0x40
+b _one
+
+_two:
+ret
+#endif
 
 nop
 nop
