@@ -262,6 +262,6 @@ void screen_init() {
     // cache_clean(gFramebuffer, gHeight * gRowPixels * 4);
     // command_register("fbclear", "clears the framebuffer output (minus banner)", screen_clear_all);
     // command_register("fbinvert", "inverts framebuffer contents", screen_invert);
-    scale_factor = 2;
+    scale_factor = 1;
     screen_is_initialized = true;
 }

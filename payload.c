@@ -13,13 +13,15 @@ uint8_t* xfb_state = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x72);
 uint8_t* skip_md0_patch = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x73);
 uint8_t* invert_fb = (uint8_t*)(PAYLOAD_BASE_ADDRESS + 0x70);
 #endif
-char* gLaunchdString = (char*)(PAYLOAD_BASE_ADDRESS + 0x74);;
+char* gLaunchdString = (char*)(PAYLOAD_BASE_ADDRESS + 0x74);
+char* enable_kpf = (char*)(PAYLOAD_BASE_ADDRESS + 0x83);
 char* CommandLine = (char*)(PAYLOAD_BASE_ADDRESS + 0x84);
 char CommandLine_Temp[BOOT_LINE_LENGTH_iOS13];
 uint16_t args_len_already;
 void command_kpf();
 void kpf_banner();
 extern void crash();
+extern uint64_t get_x18();
 
 #if DEV_BUILD
 const char build_style[] = "DEVELOPMENT";
@@ -40,6 +42,11 @@ static void usage(void)
     printf("\tcrash\t\t\t: Crash iBoot\n");
     printf("\trestore_mode \t\t: toggle md0 patches\n");
     printf("\tlaunchd <path>\t\t: set launchd path\n");
+    printf("\tenable_kpf\t\t: Enable KPF (needed for launchd path change)\n");
+    printf("\ttz\t\t\t: Trustzone Info\n");
+    printf("\ttz_lockdown\t\t\t: Trustzone lockdown (crash iBoot)\n");
+    printf("\tresearch\t\t: flip /options/research-enabled in DeviceTree\n");
+    printf("\tprint_x18\t\t: print value in x18 register\n");
     printf("\tpeek <addr> <size>\t: dump memory\n");
     printf("\tpoke <addr> <uint64>\t: write <uint64> to <addr>\n");
     printf("\tbzero <addr> <size>\t: zero memory of <size> at addr\n");
@@ -57,6 +64,7 @@ int payload(int argc, struct cmd_arg *args)
 #endif
         *xargs_set = 0;
         *xfb_state = 0;
+        *enable_kpf = 0;
         return 0;
     }
     else
@@ -85,14 +93,30 @@ int payload(int argc, struct cmd_arg *args)
         } else if(!strcmp(args[1].str, "crash")) {
             crash();
             return -1;
+        } else if(!strcmp(args[1].str, "tz")) {
+            gTZRegbase = (volatile uint32_t*)0x0000000200000480;
+            tz_command();
+            return 0; 
+        } else if(!strcmp(args[1].str, "tz_lockdown")) {
+            gTZRegbase = (volatile uint32_t*)0x0000000200000480;
+            tz_lockdown();
+            return 0; 
+        } else if(!strcmp(args[1].str, "print_x18")) {
+            printf("x18 = %x\n", get_x18());
+            return 0; 
         } else
 #endif
-        if(!strcmp(args[1].str, "xfb")) {
-            if (*xfb_state == 1) *xfb_state = 0;
-            else *xfb_state = 1;
-            dprintf("xfb_state = %u\n", *xfb_state);
-            return 0;
-        } 
+    if(!strcmp(args[1].str, "xfb")) {
+        if (*xfb_state == 1) *xfb_state = 0;
+        else *xfb_state = 1;
+        dprintf("xfb_state = %u\n", *xfb_state);
+        return 0;
+    } else if(!strcmp(args[1].str, "enable_kpf")) {
+        if (*enable_kpf == 1) *enable_kpf = 0;
+        else *enable_kpf = 1;
+        dprintf("enable_kpf = %u\n", *enable_kpf);
+        return 0;
+    }  
     } else if (argc == 3) {
         if (!strcmp(args[1].str, "boot")) {
             if (strlen(args[2].str) > 19) {
@@ -266,8 +290,10 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     tz_command();
     log_bootargs();
 #endif
-    kpf_banner();
-    command_kpf();
+    if (*enable_kpf == 1) {
+        kpf_banner();
+        command_kpf();
+    }
     xnu_boot();
 #if DEV_BUILD
     mem_stat();

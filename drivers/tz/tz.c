@@ -42,6 +42,7 @@ void tz_command(void) {
     real[1] = (((uint64_t)raw[1] + 1) << shift) + 0x800000000ULL;
     real[2] = ( (uint64_t)raw[2]      << shift) + 0x800000000ULL;
     real[3] = (((uint64_t)raw[3] + 1) << shift) + 0x800000000ULL;
+    printf("gTZRegBase = %p\n", gTZRegbase);
     printf("TZ0 (%s):\n"
             "    base: %x (%llx)\n"
             "    end:  %x (%llx)\n"

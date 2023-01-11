@@ -5,7 +5,7 @@ all: $(OBJECTS) entry.o
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
 
-entry.o:
+entry.o: entry.S
 	$(CC) -c $(CFLAGS) entry.S
 
 .PHONY: all

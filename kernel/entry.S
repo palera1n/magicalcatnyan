@@ -5,6 +5,9 @@
 .globl start
 .align 4
 
+.globl _get_x18
+.align 4
+
 start:
 
 // 0x0000
@@ -60,9 +63,10 @@ gpanic:
 _gLaunchdString:
 .ascii "/sbin/launchd\0"
 
-// 0x0072 padding
-.byte 0x00
-.byte 0x00
+// 0x0082 reserved
+// 0x0083 enable_kpf
+.byte 0x50
+.byte 0x51
 
 // 0x0084 CommandLine
 .quad 0x4848484848484848
@@ -143,6 +147,7 @@ _gLaunchdString:
 .quad 0x4848484848484848
 
 // 0x2e4
+
 #if DEV_BUILD
 .globl _crash
 .align 4
@@ -174,6 +179,10 @@ b _one
 _two:
 ret
 #endif
+
+_get_x18:
+mov x0, x18
+ret
 
 nop
 nop

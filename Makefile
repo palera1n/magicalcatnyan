@@ -68,7 +68,7 @@ export DRIVERS CC CFLAGS
 
 all: payload
 
-vmacho:
+vmacho: vmacho.c
 	$(CC_FOR_BUILD) $(CFLAGS_FOR_BUILD) $(LDFLAGS_FOR_BUILD) -o vmacho vmacho.c
 
 payload: $(OBJ)_s8000.bin $(OBJ)_t8010.bin $(OBJ)_t8015.bin
@@ -78,9 +78,6 @@ payload: $(OBJ)_s8000.bin $(OBJ)_t8010.bin $(OBJ)_t8015.bin
 
 $(SUBDIRS):
 	$(MAKE) -C "$@"
-
-newlib:
-	$(MAKE) -C pongoOS/newlib all
 
 payload_%.o: $(SUBDIRS)
 	$(CC) -DPAYLOAD_$* -Wl,-image_base,$(shell if [ "$*" = "t8015" ]; then echo 0x800F00000; else echo 0x800700000; fi) payload.c drivers/plat/$*.o -DBUILDING_PAYLOAD $(OBJECTS) $(CFLAGS) $(LDFLAGS) -o $(OBJ)_$*.o
