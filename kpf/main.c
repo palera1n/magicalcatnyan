@@ -257,7 +257,10 @@ bool kpf_mac_mount_callback(struct xnu_pf_patch* patch, uint32_t* opcode_stream)
     return true;
 }
 
+bool conversion_ran = false;
+
 bool kpf_conversion_callback(struct xnu_pf_patch* patch, uint32_t* opcode_stream) {
+    if (conversion_ran) return false;
     uint32_t * const orig = opcode_stream;
     uint32_t lr1 = opcode_stream[0],
              lr2 = opcode_stream[2];
@@ -318,6 +321,7 @@ bool kpf_conversion_callback(struct xnu_pf_patch* patch, uint32_t* opcode_stream
             )
             {
                 *opcode_stream = 0xeb1f03ff; // cmp xzr, xzr
+                conversion_ran = true;
                 return true;
             }
         }
@@ -331,6 +335,53 @@ bool kpf_conversion_callback(struct xnu_pf_patch* patch, uint32_t* opcode_stream
     panic_at(orig, "kpf_conversion_callback: failed to find cmp");
     return false;
 }
+
+bool kpf_conversion_callback2(struct xnu_pf_patch* patch, uint32_t* opcode_stream) {
+    if (conversion_ran) return false;
+
+    opcode_stream[4] = 0xeb1f03ff;
+
+    puts("KPF: Found task_conversion_eval");
+
+    conversion_ran = true;
+    return true;
+}
+
+bool kpf_conversion_callback3(struct xnu_pf_patch* patch, uint32_t* opcode_stream) {
+    if (conversion_ran) return false;
+
+    uint64_t cbz_1_target = xnu_ptr_to_va(opcode_stream + 2) + (sxt32(opcode_stream[2] >> 5, 19) << 2);
+    uint64_t cbz_2_target = xnu_ptr_to_va(opcode_stream + 5) + (sxt32(opcode_stream[5] >> 5, 19) << 2);
+
+    uint64_t bl_1_target = follow_call(opcode_stream + 1);
+    uint64_t bl_2_target = follow_call(opcode_stream + 4);
+
+    if (cbz_1_target != cbz_1_target || bl_1_target != bl_2_target || opcode_stream[0] != opcode_stream[7]) {
+        return false;
+    }
+
+    puts("KPF: Found task_conversion_eval");
+
+    uint32_t* beq = opcode_stream;
+
+    while (beq = find_prev_insn(beq, 0x100, 0x54000300, 0xffffff0f)) {
+        uint64_t followed_call = xnu_ptr_to_va(beq) + (sxt32(beq[0] >> 5, 19) << 2);
+
+        printf("followed to 0x%llx\n", followed_call);
+
+        if (followed_call == cbz_1_target) break;
+
+        --beq;
+    }
+
+    printf("we're at 0x%llx, value is 0x%lx\n", xnu_ptr_to_va(beq), beq[0]);
+
+    beq[-1] = 0xeb1f03ff;
+
+    conversion_ran = true;
+    return true;
+}
+
 void kpf_conversion_patch(xnu_pf_patchset_t* xnu_text_exec_patchset) {
     // this patch is here to allow the usage of the extracted tfp0 port from userland (see https://bazad.github.io/2018/10/bypassing-platform-binary-task-threads/#the-platform-binary-mitigation)
     // the task_conversion_eval function is often inlinded tho and because of that we need to find it across the kernel
@@ -380,7 +431,22 @@ void kpf_conversion_patch(xnu_pf_patchset_t* xnu_text_exec_patchset) {
         0xffc00000,
         0xfef80000, // match both tbz or tbnz
     };
-    xnu_pf_maskmatch(xnu_text_exec_patchset, "conversion_patch", matches, masks, sizeof(matches)/sizeof(uint64_t), true, (void*)kpf_conversion_callback);
+    xnu_pf_maskmatch(xnu_text_exec_patchset, "conversion_patch", matches, masks, sizeof(matches)/sizeof(uint64_t), false, (void*)kpf_conversion_callback);
+
+    // /x 1f2003d50a0000580f0000eb00000054:ffffffff0f0000ff0f00ffff0f0000ff
+    uint64_t matches2[] = {
+        0xd503201f,
+        0x5800000a,
+        0xeb00000f,
+        0x54000000
+    };
+    uint64_t masks2[] = {
+        0xffffffff,
+        0xff00000f,
+        0xffff000f,
+        0xff00000f
+    };
+    xnu_pf_maskmatch(xnu_text_exec_patchset, "conversion_patch", matches2, masks2, sizeof(matches2)/sizeof(uint64_t), false, (void*)kpf_conversion_callback2);
 }
 
 bool found_convert_port_to_map = false;
@@ -883,8 +949,13 @@ bool kpf_mac_vm_map_protect_callback(struct xnu_pf_patch* patch, uint32_t* opcod
     uint32_t* first_ldr = find_next_insn(&opcode_stream[0], 0x400, 0x37480000, 0xFFFF0000);
     if(!first_ldr)
     {
-        DEVLOG("kpf_mac_vm_map_protect_callback: failed to find ldr");
-        return false;
+        first_ldr = find_next_insn(&opcode_stream[0], 0x400, 0x36480000, 0xFFFF0000);
+        if (!first_ldr) {
+            DEVLOG("kpf_mac_vm_map_protect_callback: failed to find ldr");
+            return false;
+        } else {
+            first_ldr++;
+        }
     }
     first_ldr++;
     uint32_t delta = first_ldr - (&opcode_stream[2]);
@@ -1463,6 +1534,80 @@ bool kpf_apfs_patches_mount(struct xnu_pf_patch* patch, uint32_t* opcode_stream)
     return true;
 }
 
+bool kpf_apfs_personalized_hash(struct xnu_pf_patch* patch, uint32_t* opcode_stream) {
+    uint32_t* cbz_success = find_prev_insn(opcode_stream, 0x500, 0x34000000, 0xff000000);
+
+    if (!cbz_success) {
+        puts("kpf_apfs_personalized_hash: failed to find success cbz");
+        return false;
+    } else {
+        puts("KPF: found kpf_apfs_personalized_hash");
+    }
+
+    uint32_t branch_success = 0x14000000 | (sxt32(cbz_success[0] >> 5, 19) & 0x03ffffff);
+
+    uint32_t* cbz_fail = find_prev_insn(cbz_success, 0x10, 0xb4000000, 0xff000000);
+
+    if (!cbz_fail) {
+        puts("kpf_apfs_personalized_hash: failed to find fail cbz");
+        return false;
+    }
+
+    uint64_t addr_fail = xnu_ptr_to_va(cbz_fail) + (sxt32(cbz_fail[0] >> 5, 19) << 2);
+
+    uint32_t array_pos = (sxt32(cbz_fail[0] >> 5, 19) << 2) / 4;
+
+    DEVLOG("addr diff is %d, addrs: success is 0x%lx, fail is 0x%lx, target is 0x%llx, insns: branch is 0x%lx (BE)", array_pos, xnu_ptr_to_va(cbz_success), xnu_ptr_to_va(cbz_fail), addr_fail, branch_success);
+
+    cbz_fail[array_pos - 1] = branch_success;
+
+    return true;
+}
+
+bool kpf_apfs_auth_required(struct xnu_pf_patch* patch, uint32_t* opcode_stream) {
+    opcode_stream[-19] = 0xd2800000;
+    opcode_stream[-18] = RET;
+
+    puts("KPF: Found root authentication required");
+
+    return kpf_apfs_personalized_hash(patch, opcode_stream);
+}
+
+bool kpf_apfs_seal_broken(struct xnu_pf_patch* patch, uint32_t* opcode_stream) {
+    uint64_t page = ((uint64_t)(opcode_stream) & ~0xfffULL) + adrp_off(opcode_stream[0]);
+    uint32_t off = (opcode_stream[1] >> 10) & 0xfff;
+    const char *str = (const char *)(page + off);
+
+    if (strcmp(str, "\"root volume seal is broken %p\\n\" @%s:%d") != 0) {
+        return false;
+    }
+
+    uint32_t* tbnz = find_prev_insn(opcode_stream, 0x100, 0x37000000, 0xff000000);
+
+    if (!tbnz) {
+        panic("kpf_apfs_seal_broken: failed to find tbnz");
+    }
+
+    tbnz[0] = RET;
+
+    puts("KPF: Found root seal broken");
+    return true;
+}
+
+bool kpf_apfs_allow_mount_patches(struct xnu_pf_patch *patch, uint32_t *opcode_stream) {
+    uint32_t *tbnz = find_prev_insn(opcode_stream, 0x100, 0x37000000, 0xff000000);
+
+    tbnz[0] = NOP;
+
+    puts("KPF: found updating mount not allowed");
+
+    opcode_stream[0] = 0x52800000; /* mov w0, 0 */
+
+    puts("KPF: found apfs_vfsop_mount");
+
+    return true;
+}
+
 bool kpf_apfs_rootauth(struct xnu_pf_patch *patch, uint32_t *opcode_stream)
 {
     opcode_stream[0] = NOP;
@@ -1521,26 +1666,11 @@ void kpf_apfs_patches(xnu_pf_patchset_t* patchset, bool have_union) {
         0xffffffff,
         0xffffffff
     };
-    uint64_t remount_matches2[] = {
-        0x37700000, // tbnz w0, 0xe, *
-        0xb94003a0, // ldr x*, [x29/sp, *]
-        0x121f7800, // and w*, w*, 0xfffffffe
-        0xb90003a0, // str x*, [x29/sp, *]
-    };
 
-    uint64_t remount_masks2[] = {
-        0xfff8001f,
-        0xfffe03a0,
-        0xfffffc00,
-        0xffc003a0,
-    };
     xnu_pf_maskmatch(patchset, "handle_eval_rootauth", rootauth_matches, rootauth_masks,
                      sizeof(rootauth_masks) / sizeof(uint64_t), true,
                      (void *)kpf_apfs_rootauth);
 
-    xnu_pf_maskmatch(patchset, "apfs_vfsop_mount", remount_matches2, remount_masks2,
-                     sizeof(remount_masks2) / sizeof(uint64_t), true,
-                     (void *)kpf_apfs_vfsop_mount);
     if(have_union)
     {
         // the rename function will prevent us from renaming a snapshot that's on the rootfs, so we will just patch that check out
@@ -1567,6 +1697,43 @@ void kpf_apfs_patches(xnu_pf_patchset_t* patchset, bool have_union) {
         };
         xnu_pf_maskmatch(patchset, "apfs_patch_rename", i_matches, i_masks, sizeof(i_matches)/sizeof(uint64_t), true, (void*)kpf_apfs_patches_rename);
     }
+    uint64_t ii_matches[] = {
+        0x00000000,
+        0x91000000,
+    };
+    uint64_t ii_masks[] = {
+        0x0f000000,
+        0xff000000,
+    };
+    xnu_pf_maskmatch(patchset, "apfs_seal_broken", ii_matches, ii_masks, sizeof(ii_matches)/sizeof(uint64_t), true, (void*)kpf_apfs_seal_broken);
+
+    uint64_t iii_matches[] = {
+        0x90ff8200,
+        0x910002d6,
+        0x52800008
+    };
+    uint64_t iii_masks[] = {
+        0xffffff00,
+        0xff0003ff,
+        0xffff000f
+    };
+    xnu_pf_maskmatch(patchset, "apfs_auth_required", iii_matches, iii_masks, sizeof(iii_matches)/sizeof(uint64_t), false, (void*)kpf_apfs_auth_required);
+
+    uint64_t remount_matches2[] = {
+        0x37700000, // tbnz w0, 0xe, *
+        0xb94003a0, // ldr x*, [x29/sp, *]
+        0x121f7800, // and w*, w*, 0xfffffffe
+        0xb90003a0, // str x*, [x29/sp, *]
+    };
+
+    uint64_t remount_masks2[] = {
+        0xfff8001f,
+        0xfffe03a0,
+        0xfffffc00,
+        0xffc003a0,
+    };
+
+    xnu_pf_maskmatch(patchset, "apfs_allow_mount", remount_matches2, remount_masks2, sizeof(remount_masks2) / sizeof(uint64_t), true, (void *)kpf_apfs_allow_mount_patches);
 }
 static uint32_t* amfi_ret;
 bool kpf_amfi_execve_tail(struct xnu_pf_patch* patch, uint32_t* opcode_stream) {
@@ -1709,6 +1876,23 @@ bool kpf_amfi_mac_syscall_low(struct xnu_pf_patch *patch, uint32_t *opcode_strea
     // Unlike the other matches, the case we want is *not* the fallthrough one here.
     // So we need to follow the b.eq for 0x5a here.
     return kpf_amfi_mac_syscall(patch, opcode_stream + 3 + sxt32(opcode_stream[3] >> 5, 19)); // uint32 takes care of << 2
+}
+bool kpf_amfi_force_dev_mode(struct xnu_pf_patch *patch, uint32_t *opcode_stream) {
+    uint64_t page = ((uint64_t)(opcode_stream) & ~0xfffULL) + adrp_off(opcode_stream[0]);
+    uint32_t off = (opcode_stream[1] >> 10) & 0xfff;
+    const char *str = (const char *)(page + off);
+
+    if (strcmp(str, "AMFI: developer mode is force enabled\n") != 0) {
+        return false;
+    }
+
+    puts("KPF: found force_developer_mode");
+
+    uint32_t *cbz = find_prev_insn(opcode_stream, 0x100, 0x34000000, 0xff000000);
+
+    cbz[0] = 0x14000000 | (sxt32(cbz[0] >> 5, 19) & 0x03ffffff);
+
+    return true;
 }
 void kpf_amfi_kext_patches(xnu_pf_patchset_t* patchset) {
     // this patch helps us find the return of the amfi function so that we can jump into shellcode from there and modify the cs flags
@@ -1893,6 +2077,17 @@ void kpf_amfi_kext_patches(xnu_pf_patchset_t* patchset) {
         0xff00001f,
     };
     xnu_pf_maskmatch(patchset, "amfi_mac_syscall_low", iiii_matches, iiii_masks, sizeof(iiii_matches)/sizeof(uint64_t), false, (void*)kpf_amfi_mac_syscall_low);
+
+    // /x 081d40390800003408008052:ffffffff0f00fffffff1ffff
+    uint64_t iiiii_matches[] = {
+        0x90000000,
+        0x91000000,
+    };
+    uint64_t iiiii_masks[] = {
+        0x9f000000,
+        0xff000000,
+    };
+    xnu_pf_maskmatch(patchset, "force_dev_mode", iiiii_matches, iiiii_masks, sizeof(iiiii_matches)/sizeof(uint64_t), false, (void*)kpf_amfi_force_dev_mode);
 }
 
 void kpf_sandbox_kext_patches(xnu_pf_patchset_t* patchset) {
@@ -2309,6 +2504,14 @@ void kpf_root_livefs_patch(xnu_pf_patchset_t* patchset) {
     xnu_pf_maskmatch(patchset, "root_livefs", matches, masks, sizeof(masks)/sizeof(uint64_t), true, (void*)root_livefs_callback);
 }
 
+bool allow_update_mount_callback(struct xnu_pf_patch *patch, uint32_t *opcode_stream) {
+    puts("KPF: Found allow_update_mount");
+#if DEV_BUILD
+    printf("opstream 0x%016llx\n", xnu_ptr_to_va(opcode_stream));
+#endif
+    opcode_stream[0] = NOP;
+    return true;
+}
 
 checkrain_option_t gkpf_flags, checkra1n_flags;
 
@@ -2334,11 +2537,14 @@ void command_kpf() {
 
     struct mach_header_64* hdr = xnu_header();
     xnu_pf_range_t* text_cstring_range = xnu_pf_section(hdr, "__TEXT", "__cstring");
-
+    xnu_pf_patchset_t* text_patchset = xnu_pf_patchset_create(XNU_PF_ACCESS_32BIT);
 #if DEV_BUILD
     xnu_pf_range_t* text_const_range = xnu_pf_section(hdr, "__TEXT", "__const");
     kpf_kernel_version_init(text_const_range);
 #endif
+    xnu_pf_emit(text_patchset);
+    xnu_pf_apply(text_cstring_range, text_patchset);
+    xnu_pf_patchset_destroy(text_patchset);
 
     // extern struct mach_header_64* xnu_pf_get_kext_header(struct mach_header_64* kheader, const char* kext_bundle_id);
 
