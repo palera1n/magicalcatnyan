@@ -1,6 +1,6 @@
-# nya~
-unfinished, incomplete iboot payload  
-many codes are missing :p  
+# magicalcatnyan
+
+nya~
 
 　    ∧＿∧＿_   
 　　／(´･ω･`) ／＼   
@@ -8,5 +8,15 @@ many codes are missing :p
 　　|　　　  |／   
 　　 ￣￣￣￣   
 
+## features
+- kernel patch finder
+- setting boot args at runtime
+- devicetree patcher
+- boot framebuffer
+- trustzone information
+
 ## building
-to build run ``make all``
+
+to build a release run ``make all``
+
+to build a development payload run ``make DEV_BUILD=1 all``
