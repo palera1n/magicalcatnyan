@@ -21,6 +21,7 @@ uint16_t args_len_already;
 void command_kpf();
 void kpf_banner();
 extern void crash();
+extern void mm_init();
 extern uint64_t get_x18();
 
 #if DEV_BUILD
@@ -40,12 +41,11 @@ static void usage(void)
     printf("\tdefault_xargs \t\t: use the default xnu boot command line\n");
     printf("\tfbinvert\t\t: invert boot framebuffer\n");
     printf("\tcrash\t\t\t: Crash iBoot\n");
-    printf("\trestore_mode \t\t: toggle md0 patches\n");
+    printf("\trestore_mode \t\t: toggle md0 patches (need KPF)\n");
     printf("\tlaunchd <path>\t\t: set launchd path\n");
     printf("\tenable_kpf\t\t: Enable KPF (needed for launchd path change)\n");
     printf("\ttz\t\t\t: Trustzone Info\n");
-    printf("\ttz_lockdown\t\t\t: Trustzone lockdown (crash iBoot)\n");
-    printf("\tresearch\t\t: flip /options/research-enabled in DeviceTree\n");
+    printf("\ttz_lockdown\t\t: Trustzone lockdown (crash iBoot)\n");
     printf("\tprint_x18\t\t: print value in x18 register\n");
     printf("\tpeek <addr> <size>\t: dump memory\n");
     printf("\tpoke <addr> <uint64>\t: write <uint64> to <addr>\n");
@@ -208,6 +208,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     gIOBase = dt_get_u64_prop_i("arm-io", "ranges", 1);
     gDevType = dt_get_prop("arm-io", "device_type", NULL);
 
+    // Determine the CPID
     size_t len = strlen(gDevType) - 3;
     len = len < 8 ? len : 8;
     strncpy(soc_name, gDevType, len);
@@ -231,6 +232,11 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
             socnum = 0x8000;
         }
     }
+
+    // Initialize malloc() and jit_alloc()
+    mm_init();
+
+    // Enable the framebuffer
     screen_init();
 
 #if DEV_BUILD
@@ -240,6 +246,9 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
 #endif
 
 #if PAYLOAD_t8015
+    screen_puts("");
+    screen_puts("");
+    screen_puts("");
     screen_puts("");
     screen_puts("");
     screen_puts("");
@@ -268,6 +277,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     dprintf("Built with: GCC %s\n", __VERSION__);
 #endif
 
+    // Patch root-matching
     {
         uint32_t len = 0;
         dt_node_t* dev = dt_find(gDeviceTree, "chosen");
@@ -290,6 +300,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
     tz_command();
     log_bootargs();
 #endif
+    // Run KPF if enabled
     if (*enable_kpf == 1) {
         kpf_banner();
         command_kpf();
