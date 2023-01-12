@@ -17,6 +17,7 @@ char* gLaunchdString = (char*)(PAYLOAD_BASE_ADDRESS + 0x74);
 char* enable_kpf = (char*)(PAYLOAD_BASE_ADDRESS + 0x83);
 char* CommandLine = (char*)(PAYLOAD_BASE_ADDRESS + 0x84);
 char CommandLine_Temp[BOOT_LINE_LENGTH_iOS13];
+bool serial_is_initialized = false;
 uint16_t args_len_already;
 void command_kpf();
 void kpf_banner();
@@ -58,6 +59,7 @@ int payload(int argc, struct cmd_arg *args)
     if(*(uint32_t*)PAYLOAD_BASE_ADDRESS == 0)
     {
         if(iboot_func_init()) return -1;
+        serial_is_initialized = true;
         dprintf("-------- relocated --------\n");
 #if DEV_BUILD
         *invert_fb = 0;
@@ -71,6 +73,7 @@ int payload(int argc, struct cmd_arg *args)
     {
         if(iboot_func_init()) return -1;
     }
+    serial_is_initialized = true;
 
     dprintf("-------- payload start --------\n");
 
@@ -316,6 +319,7 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
 int jump_hook(void* boot_image, void* boot_args)
 {
     iboot_func_load();
+    serial_is_initialized = true;
     
     dprintf("-------- hello payload --------\n");
     

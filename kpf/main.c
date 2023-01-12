@@ -257,10 +257,12 @@ bool kpf_mac_mount_callback(struct xnu_pf_patch* patch, uint32_t* opcode_stream)
     return true;
 }
 
-bool conversion_ran = false;
+static bool found_kpf_conversion_ldr = false;
+static bool found_kpf_conversion_bl  = false;
+static bool found_kpf_conversion_imm = false;
 
-bool kpf_conversion_callback(struct xnu_pf_patch* patch, uint32_t* opcode_stream) {
-    if (conversion_ran) return false;
+static bool kpf_conversion_callback_ldr(struct xnu_pf_patch *patch, uint32_t *opcode_stream)
+{
     uint32_t * const orig = opcode_stream;
     uint32_t lr1 = opcode_stream[0],
              lr2 = opcode_stream[2];
@@ -271,6 +273,11 @@ bool kpf_conversion_callback(struct xnu_pf_patch* patch, uint32_t* opcode_stream
     {
         panic_at(orig, "kpf_conversion_callback: opcode check failed");
     }
+    if(found_kpf_conversion_bl || found_kpf_conversion_imm)
+    {
+        panic_at(orig, "kpf_conversion_callback: found both bl/imm and ldr");
+    }
+    found_kpf_conversion_ldr = true;
     puts("KPF: Found task_conversion_eval");
 
     // Step 3
@@ -290,14 +297,14 @@ bool kpf_conversion_callback(struct xnu_pf_patch* patch, uint32_t* opcode_stream
     // Where either the cmp or ccmp registers must correspond to ours.
     // We simply patch the first check to always succeed.
     uint32_t regs = (1 << ((lr1 >> 5) & 0x1f)) | (1 << ((lr2 >> 5) & 0x1f));
-    for(my_size_t i = 0; i < 128; ++i) // arbitrary limit
+    for(size_t i = 0; i < 128; ++i) // arbitrary limit
     {
         uint32_t op = *--opcode_stream;
         if((op & 0xffe0fc1f) == 0xeb00001f) // cmp xN, xM
         {
             uint32_t n1 = opcode_stream[1],
                      n2 = opcode_stream[2];
-            my_size_t idx = 2;
+            size_t idx = 2;
             if((n2 & 0x7f800000) == 0x53000000) // ubfm
             {
                 n2 = opcode_stream[++idx];
@@ -321,7 +328,6 @@ bool kpf_conversion_callback(struct xnu_pf_patch* patch, uint32_t* opcode_stream
             )
             {
                 *opcode_stream = 0xeb1f03ff; // cmp xzr, xzr
-                conversion_ran = true;
                 return true;
             }
         }
@@ -336,53 +342,113 @@ bool kpf_conversion_callback(struct xnu_pf_patch* patch, uint32_t* opcode_stream
     return false;
 }
 
-bool kpf_conversion_callback2(struct xnu_pf_patch* patch, uint32_t* opcode_stream) {
-    if (conversion_ran) return false;
-
-    opcode_stream[4] = 0xeb1f03ff;
-
+static bool kpf_conversion_callback(uint32_t *opcode_stream, bool forward)
+{
+    uint32_t * const orig = opcode_stream;
+    if(found_kpf_conversion_ldr)
+    {
+        panic_at(orig, "kpf_conversion_callback: found both ldr and bl/imm");
+    }
     puts("KPF: Found task_conversion_eval");
 
-    conversion_ran = true;
-    return true;
+    for(size_t i = 0, max = forward ? 0x18 : 0x30; i < max; ++i)
+    {
+        uint32_t *ldr = forward ? opcode_stream + i : opcode_stream - i;
+        if
+        (
+            (
+                !(ldr[0] == NOP && (ldr[1] & 0xff000000) == 0x58000000) // nop + ldr
+                &&
+                !((ldr[0] & 0x9f000000) == 0x90000000 && (ldr[1] & 0xffc003e0) == (0xf9400000 | ((ldr[0] & 0x1f) << 5))) // adrp + ldr
+            )
+            ||
+            !((ldr[2] & 0xffe0ffff) == (0xeb00001f | ((ldr[1] & 0x1f) << 5))) // cmp
+        )
+        {
+            continue;
+        }
+
+        size_t idx = 3;
+        if((ldr[idx] & 0xffe0fc1b) == 0xfa401000) // ccmp {eq|ne}
+        {
+            ++idx;
+        }
+        if((ldr[idx] & 0xff00001e) != 0x54000000) // b.{eq|ne}
+        {
+            panic_at(ldr, "kpf_conversion_callback: no b.{eq|ne} after cmp/ccmp?");
+        }
+
+        ldr[2] = 0xeb1f03ff; // cmp xzr, xzr
+        return true;
+    }
+    panic_at(orig, "kpf_conversion_callback: failed to find ldr of kernel_task (searching %s)", forward ? "forward" : "backward");
+    return false;
 }
 
-bool kpf_conversion_callback3(struct xnu_pf_patch* patch, uint32_t* opcode_stream) {
-    if (conversion_ran) return false;
-
-    uint64_t cbz_1_target = xnu_ptr_to_va(opcode_stream + 2) + (sxt32(opcode_stream[2] >> 5, 19) << 2);
-    uint64_t cbz_2_target = xnu_ptr_to_va(opcode_stream + 5) + (sxt32(opcode_stream[5] >> 5, 19) << 2);
-
-    uint64_t bl_1_target = follow_call(opcode_stream + 1);
-    uint64_t bl_2_target = follow_call(opcode_stream + 4);
-
-    if (cbz_1_target != cbz_1_target || bl_1_target != bl_2_target || opcode_stream[0] != opcode_stream[7]) {
+static bool kpf_conversion_callback_bl(struct xnu_pf_patch *patch, uint32_t *opcode_stream)
+{
+    uint32_t bl1 = opcode_stream[1],
+             bl2 = opcode_stream[4];
+    // Only match if funcs are the same
+    uint32_t *f1 = opcode_stream + 1 + sxt32(bl1, 26), // uint32 takes care of << 2
+             *f2 = opcode_stream + 4 + sxt32(bl2, 26); // uint32 takes care of << 2
+    if(f1 != f2)
+    {
         return false;
     }
-
-    puts("KPF: Found task_conversion_eval");
-
-    uint32_t* beq = opcode_stream;
-
-    while (beq = find_prev_insn(beq, 0x100, 0x54000300, 0xffffff0f)) {
-        uint64_t followed_call = xnu_ptr_to_va(beq) + (sxt32(beq[0] >> 5, 19) << 2);
-
-        printf("followed to 0x%llx\n", followed_call);
-
-        if (followed_call == cbz_1_target) break;
-
-        --beq;
+    
+    // Search for bitfield marker in target function. We can be quite restrictive here
+    // because if this doesn't match, then nothing will and we'll get a KPF panic.
+    // Also make sure we don't seek past the end of any function here.
+    for(size_t i = 0; i < 32; ++i)
+    {
+        uint32_t op = f1[i];
+        if(op == RET)
+        {
+            return false;
+        }
+        if(op == 0x530a2900)
+        {
+            found_kpf_conversion_bl = true;
+            // bl can match if imm has already matched, but in that case we need to skip the patch.
+            // In order to avoid skip subsequent matches, we flip found_kpf_conversion_imm back to false here.
+            // If there's another imm match, then that will panic because found_kpf_conversion_bl is true.
+            if(found_kpf_conversion_imm)
+            {
+                found_kpf_conversion_imm = false;
+                return false;
+            }
+            return kpf_conversion_callback(opcode_stream, false);
+        }
     }
-
-    printf("we're at 0x%llx, value is 0x%lx\n", xnu_ptr_to_va(beq), beq[0]);
-
-    beq[-1] = 0xeb1f03ff;
-
-    conversion_ran = true;
-    return true;
+    return false;
 }
 
-void kpf_conversion_patch(xnu_pf_patchset_t* xnu_text_exec_patchset) {
+static bool kpf_conversion_callback_imm(struct xnu_pf_patch *patch, uint32_t *opcode_stream)
+{
+    // imm should match before bl, so it's an error if bl was already matched.
+    // XXX: This is technically not legit, as it depends on the non-inlined func
+    //      to occur before all inlined places, but so far it works fine.
+    //      If that assumption ever breaks, then we'll have to refactor how we use
+    //      found_kpf_conversion_imm, because the func above currently sets it to false
+    //      in order to avoid duplicate matches, but that would make the check below
+    //      fail to detect duplicate matches of imm. Let's hope it doesn't break.
+    if(found_kpf_conversion_bl)
+    {
+        panic_at(opcode_stream, "kpf_conversion_callback: found both bl and imm");
+    }
+    // imm must match only once
+    if(found_kpf_conversion_imm)
+    {
+        panic_at(opcode_stream, "kpf_conversion_callback: found imm more than once");
+    }
+    
+    found_kpf_conversion_imm = true;
+    return kpf_conversion_callback(opcode_stream, true);
+}
+
+void kpf_conversion_patch(xnu_pf_patchset_t* xnu_text_exec_patchset)
+{
     // this patch is here to allow the usage of the extracted tfp0 port from userland (see https://bazad.github.io/2018/10/bypassing-platform-binary-task-threads/#the-platform-binary-mitigation)
     // the task_conversion_eval function is often inlinded tho and because of that we need to find it across the kernel
     // there is this line in the functon: if ((victim->t_flags & TF_PLATFORM) && !(caller->t_flags & TF_PLATFORM)) {
@@ -431,24 +497,63 @@ void kpf_conversion_patch(xnu_pf_patchset_t* xnu_text_exec_patchset) {
         0xffc00000,
         0xfef80000, // match both tbz or tbnz
     };
-    xnu_pf_maskmatch(xnu_text_exec_patchset, "conversion_patch", matches, masks, sizeof(matches)/sizeof(uint64_t), false, (void*)kpf_conversion_callback);
+    xnu_pf_maskmatch(xnu_text_exec_patchset, "task_conversion_eval", matches, masks, sizeof(matches)/sizeof(uint64_t), false, (void*)kpf_conversion_callback_ldr);
 
-    // /x 1f2003d50a0000580f0000eb00000054:ffffffff0f0000ff0f00ffff0f0000ff
-    uint64_t matches2[] = {
-        0xd503201f,
-        0x5800000a,
-        0xeb00000f,
-        0x54000000
+    // iOS 15.7.1 made this a whole lot more annoying because the flag check was moved to its own function.
+    // Finding this in all inlined places is agony.
+    //
+    // 0xfffffff007193654      e00301aa       mov x0, xN
+    // 0xfffffff007193658      dba30094       bl sym.task_get_platform_binary
+    // 0xfffffff00719365c      80fcff34       cbz w0, 0x...
+    // 0xfffffff007193660      e00313aa       mov x0, x{16-31}
+    // 0xfffffff007193664      d8a30094       bl sym.task_get_platform_binary
+    // 0xfffffff007193668      20fcff35       cb(n)z w0, 0x...
+    //
+    // /x e00300aa0000009400000034e00310aa0000009400000034:ffffe0ff000000fc1f0000fffffff0ff000000fc1f0000fe
+    uint64_t matches_alt[] = {
+        0xaa0003e0, // mov x0, xN
+        0x94000000, // bl 0x{same}
+        0x34000000, // cbz w0, 0x...
+        0xaa1003e0, // mov x0, x{16-31}
+        0x94000000, // bl 0x{same}
+        0x34000000, // cb(n)z w0, 0x...
     };
-    uint64_t masks2[] = {
-        0xffffffff,
-        0xff00000f,
-        0xffff000f,
-        0xff00000f
+    uint64_t masks_alt[] = {
+        0xffe0ffff,
+        0xfc000000,
+        0xff00001f,
+        0xfff0ffff,
+        0xfc000000,
+        0xfe00001f,
     };
-    xnu_pf_maskmatch(xnu_text_exec_patchset, "conversion_patch", matches2, masks2, sizeof(matches2)/sizeof(uint64_t), false, (void*)kpf_conversion_callback2);
+    xnu_pf_maskmatch(xnu_text_exec_patchset, "task_conversion_eval", matches_alt, masks_alt, sizeof(matches_alt)/sizeof(uint64_t), false, (void*)kpf_conversion_callback_bl);
+
+    // This is specifically for tvOS 16.1+ and audioOS 16.1+. Everything else matches above.
+    // But these two OSes *do not* have task_conversion_eval inlined anywhere, so what instead
+    // gets inlined are the two calls to task_get_platform_binary that we search for above.
+    // So what we look for here are the flag checks in that function, which are normally
+    // optimised out in the inlined versions.
+    //
+    // 0xfffffff0071cee1c      63010035       cbnz w3, 0x{forward}
+    // 0xfffffff0071cee20      28a043b9       ldr w8, [xN, 0x...]
+    // 0xfffffff0071cee24      28012837       tbnz w8, 5, 0x{forward}
+    // 0xfffffff0071cee28      82080035       cbnz w2, 0x{forward}
+    //
+    // /x 03000035080040B90800283702000035:1f0080ff1f00c0ff1f00fcff1f0080ff
+    uint64_t matches_new[] = {
+        0x35000003, // cbnz w3, 0x{forward}
+        0xB9400008, // ldr w8, [xN, 0x...]
+        0x37280008, // tbnz w8, 5, 0x{forward}
+        0x35000002, // cbnz w2, 0x{forward}
+    };
+    uint64_t masks_new[] = {
+        0xff80001f,
+        0xffc0001f,
+        0xfffc001f,
+        0xff80001f,
+    };
+    xnu_pf_maskmatch(xnu_text_exec_patchset, "task_conversion_eval", matches_new, masks_new, sizeof(matches_new)/sizeof(uint64_t), false, (void*)kpf_conversion_callback_imm);
 }
-
 bool found_convert_port_to_map = false;
 
 bool kpf_convert_port_to_map_common(uint32_t *patchpoint)
@@ -1552,9 +1657,9 @@ bool kpf_apfs_personalized_hash(struct xnu_pf_patch* patch, uint32_t* opcode_str
         puts("kpf_apfs_personalized_hash: failed to find fail cbz");
         return false;
     }
-
+#if DEV_BUILD
     uint64_t addr_fail = xnu_ptr_to_va(cbz_fail) + (sxt32(cbz_fail[0] >> 5, 19) << 2);
-
+#endif
     uint32_t array_pos = (sxt32(cbz_fail[0] >> 5, 19) << 2) / 4;
 
     DEVLOG("addr diff is %d, addrs: success is 0x%lx, fail is 0x%lx, target is 0x%llx, insns: branch is 0x%lx (BE)", array_pos, xnu_ptr_to_va(cbz_success), xnu_ptr_to_va(cbz_fail), addr_fail, branch_success);
