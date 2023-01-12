@@ -128,16 +128,9 @@ jumpto_t jumpto;
 typedef void (*fsboot_t)(void);
 fsboot_t fsboot;
 typedef int (*panic_t)(const char *format, ...);
-panic_t panic;
+panic_t ipanic;
 
-#define panic(...)           \
-    do                       \
-    {                        \
-        serial_is_initialized = false; \
-        screen_write("\npanic: "); \
-        printf(__VA_ARGS__); \
-        panic(__VA_ARGS__);  \
-    } while (0)
+int panic(const char *format, ...);
 
 // main
 int iboot_func_init(void);

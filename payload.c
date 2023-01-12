@@ -314,7 +314,6 @@ void payload_entry(uint64_t *kernel_args, void *entryp)
 #endif
     puts("Booting");
     iprintf("======== End of magicalcatnyan serial output. ========\n");
-    panic("val %p", enable_kpf);
 }
 
 int jump_hook(void* boot_image, void* boot_args)

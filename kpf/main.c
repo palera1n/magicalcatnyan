@@ -396,6 +396,7 @@ static bool kpf_conversion_callback_bl(struct xnu_pf_patch *patch, uint32_t *opc
     {
         return false;
     }
+    
     // Search for bitfield marker in target function. We can be quite restrictive here
     // because if this doesn't match, then nothing will and we'll get a KPF panic.
     // Also make sure we don't seek past the end of any function here.
@@ -441,9 +442,11 @@ static bool kpf_conversion_callback_imm(struct xnu_pf_patch *patch, uint32_t *op
     {
         panic_at(opcode_stream, "kpf_conversion_callback: found imm more than once");
     }
+    
     found_kpf_conversion_imm = true;
     return kpf_conversion_callback(opcode_stream, true);
 }
+
 void kpf_conversion_patch(xnu_pf_patchset_t* xnu_text_exec_patchset)
 {
     // this patch is here to allow the usage of the extracted tfp0 port from userland (see https://bazad.github.io/2018/10/bypassing-platform-binary-task-threads/#the-platform-binary-mitigation)
@@ -454,7 +457,7 @@ void kpf_conversion_patch(xnu_pf_patchset_t* xnu_text_exec_patchset)
     // after we found that we will upwards search for if (caller == victim) { and patch it to always be true because then the function returns SUCCESS (step 3)
     // this is implemented in the callback
     // example from an iPhone 7 13.3:
-    // 0xfffffff00713dca4      3a2f00d0       adrp x26, sym.___stack_chk_guard
+    // 0xfffffff00713dca4      3a2f00d0       adrp x26, sym.___stack_chk_guar
     // 0xfffffff00713dca8      5a233b91       add x26, x26, 0xec8
     // 0xfffffff00713dcac      392f00f0       adrp x25, 0xfffffff007724000
     // 0xfffffff00713dcb0      f5260310       adr x21, 0xfffffff00714418c
@@ -479,7 +482,7 @@ void kpf_conversion_patch(xnu_pf_patchset_t* xnu_text_exec_patchset)
     // 0xfffffff00713dcf8      c82e4039       ldrb w8, [x22, 0xb] ; [0xb:4]=1
     // 0xfffffff00713dcfc      1f890071       cmp w8, 0x22
     // 0xfffffff00713dd00      41070054       b.ne 0xfffffff00713dde8
-    //
+
     // to find this with r2 run the following cmd:
     // /x 000040b900005036000040b900005036:0000c0ff0000f8ff0000c0ff0000f8fe
     uint64_t matches[] = {
@@ -551,7 +554,6 @@ void kpf_conversion_patch(xnu_pf_patchset_t* xnu_text_exec_patchset)
     };
     xnu_pf_maskmatch(xnu_text_exec_patchset, "task_conversion_eval", matches_new, masks_new, sizeof(matches_new)/sizeof(uint64_t), false, (void*)kpf_conversion_callback_imm);
 }
-
 bool found_convert_port_to_map = false;
 
 bool kpf_convert_port_to_map_common(uint32_t *patchpoint)
@@ -1655,9 +1657,9 @@ bool kpf_apfs_personalized_hash(struct xnu_pf_patch* patch, uint32_t* opcode_str
         puts("kpf_apfs_personalized_hash: failed to find fail cbz");
         return false;
     }
-
-    uint64_t __unused addr_fail = xnu_ptr_to_va(cbz_fail) + (sxt32(cbz_fail[0] >> 5, 19) << 2);
-
+#if DEV_BUILD
+    uint64_t addr_fail = xnu_ptr_to_va(cbz_fail) + (sxt32(cbz_fail[0] >> 5, 19) << 2);
+#endif
     uint32_t array_pos = (sxt32(cbz_fail[0] >> 5, 19) << 2) / 4;
 
     DEVLOG("addr diff is %d, addrs: success is 0x%lx, fail is 0x%lx, target is 0x%llx, insns: branch is 0x%lx (BE)", array_pos, xnu_ptr_to_va(cbz_success), xnu_ptr_to_va(cbz_fail), addr_fail, branch_success);
@@ -1668,19 +1670,12 @@ bool kpf_apfs_personalized_hash(struct xnu_pf_patch* patch, uint32_t* opcode_str
 }
 
 bool kpf_apfs_auth_required(struct xnu_pf_patch* patch, uint32_t* opcode_stream) {
-    uint64_t page = ((uint64_t)(opcode_stream) & ~0xfffULL) + adrp_off(opcode_stream[0]);
-    uint32_t off = (opcode_stream[1] >> 10) & 0xfff;
-    const char *str = (const char *)(page + off);
-    if (strcmp(str, "is_root_hash_authentication_required_ios") == 0) {
-        uint32_t* func_start = find_prev_insn(opcode_stream, 0x25, 0xa9b000f0, 0xfff000f0);
-        func_start[0] = 0xd2800000;
-        func_start[1] = RET;
+    opcode_stream[-19] = 0xd2800000;
+    opcode_stream[-18] = RET;
 
-        puts("KPF: Found root authentication required");
-        return kpf_apfs_personalized_hash(patch, opcode_stream);
-    } else {
-        return false;
-    }
+    puts("KPF: Found root authentication required");
+
+    return kpf_apfs_personalized_hash(patch, opcode_stream);
 }
 
 bool kpf_apfs_seal_broken(struct xnu_pf_patch* patch, uint32_t* opcode_stream) {
@@ -1818,12 +1813,14 @@ void kpf_apfs_patches(xnu_pf_patchset_t* patchset, bool have_union) {
     xnu_pf_maskmatch(patchset, "apfs_seal_broken", ii_matches, ii_masks, sizeof(ii_matches)/sizeof(uint64_t), true, (void*)kpf_apfs_seal_broken);
 
     uint64_t iii_matches[] = {
-        0x00000000,
-        0x91000000,
+        0x90ff8200,
+        0x910002d6,
+        0x52800008
     };
     uint64_t iii_masks[] = {
-        0x0f000000,
-        0xff000000,
+        0xffffff00,
+        0xff0003ff,
+        0xffff000f
     };
     xnu_pf_maskmatch(patchset, "apfs_auth_required", iii_matches, iii_masks, sizeof(iii_matches)/sizeof(uint64_t), false, (void*)kpf_apfs_auth_required);
 
@@ -2841,9 +2838,8 @@ void command_kpf() {
     if (!dyld_hook_addr) panic("no dyld_hook_addr?");
     if (offsetof_p_flags == (uint32_t)-1) panic("no p_flags?");
     if (!found_vm_fault_enter) panic("no vm_fault_enter");
-    if (!vfs_context_current) panic("Missing patch: vfs_context_current");
-    if (!found_kpf_conversion_ldr && !found_kpf_conversion_bl && !found_kpf_conversion_imm) panic("Missing patch: task_conversion_eval");
-    if (kmap_port_string_match && !found_convert_port_to_map) panic("Missing patch: convert_port_to_map");
+    if (!vfs_context_current) panic("missing patch: vfs_context_current");
+    if (kmap_port_string_match && !found_convert_port_to_map) panic("missing patch: convert_port_to_map");
     if (!rootvp_string_match && !kpf_has_done_mac_mount) panic("Missing patch: mac_mount");
     if (do_ramfile && !IOMemoryDescriptor_withAddress) panic("Missing patch: iomemdesc");
 

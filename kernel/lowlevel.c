@@ -4,6 +4,8 @@ uint64_t gInterruptBase;
 uint64_t gPMGRBase;
 uint64_t gWDTBase;
 
+bool panic_did_enter = false;
+
 typedef struct
 {
     uint64_t addr;
@@ -59,6 +61,42 @@ void wdt_disable()
 
 void wdt_enable() {
 	return;
+}
+
+void wdt_reset()
+{
+    if(!gWDTBase)
+    {
+        ipanic("wdt is not set up but was asked to reset, trying iBoot panic");
+    }
+    else
+    {
+        WDT_CHIP_CTL = 0x0; // Disable WDT
+        WDT_SYS_CTL  = 0x0; // Disable WDT
+        WDT_SYS_RST  = 1; // Immediate reset
+        WDT_SYS_CTL  = 0x4; // Enable WDT
+        WDT_SYS_TMR  = 0; // Reset counter
+    }
+    panic("wdt reset");
+}
+
+int panic(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    if (panic_did_enter == true) {
+        printf("\ndouble panic: ");
+        vprintf(format, args);
+        va_end(args);
+        puts("");
+        while(1) {};
+    }
+    panic_did_enter = true;
+    printf("\npanic: ");
+    vprintf(format, args);
+    va_end(args);
+    puts("");
+    wdt_reset();
+    while(1) {};
 }
 
 void pmgr_init()
