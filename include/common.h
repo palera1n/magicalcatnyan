@@ -12,6 +12,8 @@ typedef uint64_t my_size_t;
 
 extern uint32_t socnum;
 extern bool screen_is_initialized;
+extern bool serial_is_initialized;
+
 extern uint8_t* skip_md0_patch;
 
 #ifndef NULL
@@ -127,6 +129,15 @@ typedef void (*fsboot_t)(void);
 fsboot_t fsboot;
 typedef int (*panic_t)(const char *format, ...);
 panic_t panic;
+
+#define panic(...)           \
+    do                       \
+    {                        \
+        serial_is_initialized = false; \
+        screen_write("\npanic: "); \
+        printf(__VA_ARGS__); \
+        panic(__VA_ARGS__);  \
+    } while (0)
 
 // main
 int iboot_func_init(void);

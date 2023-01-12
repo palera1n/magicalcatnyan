@@ -127,8 +127,10 @@ void _putchar(char character)
   if (screen_is_initialized == true) {
     screen_putc(character);
   }
-  char s[2] = {character};
-  iprintf(s);
+  if (serial_is_initialized == true) {
+    char s[2] = {character};
+    iprintf(s);
+  }
 }
 
 void putchar(char character) {
