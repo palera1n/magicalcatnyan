@@ -1046,95 +1046,189 @@ void kpf_find_shellcode_area(xnu_pf_patchset_t* xnu_text_exec_patchset) {
     }
     xnu_pf_maskmatch(xnu_text_exec_patchset, "find_shellcode_area", matches, masks, count, true, (void*)kpf_find_shellcode_area_callback);
 }
-bool kpf_mac_vm_map_protect_callback(struct xnu_pf_patch* patch, uint32_t* opcode_stream) {
-    puts("KPF: Found vm_map_protect");
-    // tbnz w8, 9, * in C code this is:
-    // if (map->map_disallow_new_exec == TRUE) {
-    // and then we jump out of this so that we don't have these checks (no *WX and no new --X when the process has requested it)
-    uint32_t* first_ldr = find_next_insn(&opcode_stream[0], 0x400, 0x37480000, 0xFFFF0000);
-    if(!first_ldr)
+static bool found_vm_map_protect = false;
+static bool kpf_vm_map_protect_callback(uint32_t *opcode_stream)
+{
+    if(found_vm_map_protect)
     {
-        first_ldr = find_next_insn(&opcode_stream[0], 0x400, 0x36480000, 0xFFFF0000);
-        if (!first_ldr) {
-            DEVLOG("kpf_mac_vm_map_protect_callback: failed to find ldr");
-            return false;
-        } else {
-            first_ldr++;
-        }
+        panic("vm_map_protect: found twice");
     }
-    first_ldr++;
-    uint32_t delta = first_ldr - (&opcode_stream[2]);
-    delta &= 0x03ffffff;
-    delta |= 0x14000000;
-    opcode_stream[2] = delta;
-    xnu_pf_disable_patch(patch);
+    found_vm_map_protect = true;
+    puts("KPF: Found vm_map_protect");
+
+    uint32_t *tbz = find_next_insn(opcode_stream, 8, 0x36480000, 0xfef80010); // tb[n]z w{0-15}, 0x...
+    if(!tbz)
+    {
+        panic("vm_map_protect: failed to find tb[n]z");
+    }
+
+    uint32_t op = *tbz;
+    if(op & 0x1000000) // tbnz
+    {
+        *tbz = NOP;
+    }
+    else // tbz
+    {
+        *tbz = 0x14000000 | (uint32_t)sxt32(op >> 5, 14);
+    }
     return true;
 }
 
-void kpf_mac_vm_map_protect_patch(xnu_pf_patchset_t* xnu_text_exec_patchset) {
-    // allow -wx vm_map_protects and new --x mappings even with map_disallow_new_exec set
-    // this is done by patchfinding the place where vm_map_protect checks if the new permission contains both EXEC (4) and WRITE (2) -> 6
-    // in C code this is:
-    // if ((new_prot & VM_PROT_WRITE) &&
-    // (new_prot & VM_PROT_EXECUTE) &&
-    // [...]
-    //      !(current->used_for_jit)) {
-    // [...]
-    //      printf("CODE SIGNING: %d[%s] %s can't have both write and exec at the same time\n",
-    //      new_prot &= ~VM_PROT_EXECUTE;
-    //#if VM_PROTECT_WX_FAIL
-    //      vm_map_unlock(map);
-    //      return KERN_PROTECTION_FAILURE;
-    //#endif /* VM_PROTECT_WX_FAIL */
-    // [...]
-    // if (map->map_disallow_new_exec == TRUE) {
-    //      if ((new_prot & VM_PROT_EXECUTE) ||
-    //          ((current->protection & VM_PROT_EXECUTE) && (new_prot & VM_PROT_WRITE))) {
-    //          vm_map_unlock(map);
-    //          return KERN_PROTECTION_FAILURE;
-    //      }
-    //  }
-    // as an example from i7 13.3:
-    // 0xfffffff0071c62fc      3f01166b       cmp w9, w22
-    // 0xfffffff0071c6300      c1020054       b.ne 0xfffffff0071c6358
-    // ;-- hit13_1:
-    // 0xfffffff0071c6304      c9061f12       and w9, w22, 6 <- patchfind this
-    // 0xfffffff0071c6308      3f190071       cmp w9, 6
-    // 0xfffffff0071c630c      81000054       b.ne 0xfffffff0071c631c
-    // 0xfffffff0071c6310      6800a837       tbnz w8, 0x15, 0xfffffff0071c631c
-    // 0xfffffff0071c6314      61a91094       bl sym._current_proc
-    // 0xfffffff0071c6318      d67a1d12       and w22, w22, 0xfffffffb
-    // 0xfffffff0071c631c      68364439       ldrb w8, [x19, 0x10d] ; [0x10d:4]=0
-    // 0xfffffff0071c6320      a8000836       tbz w8, 1, 0xfffffff0071c6334
-    // 0xfffffff0071c6324      b6011037       tbnz w22, 2, 0xfffffff0071c6358
-    // 0xfffffff0071c6328      76000836       tbz w22, 1, 0xfffffff0071c6334
-    // 0xfffffff0071c632c      284b40b9       ldr w8, [x25, 0x48] ; [0x48:4]=0x5458 ;
-    // 0xfffffff0071c6330      48014837       tbnz w8, 9, 0xfffffff0071c6358 <- find this (map->map_disallow_new_exec == TRUE)
-    // 0xfffffff0071c6334      290740f9       ldr x9, [x25, 8]    ; [0x8:4]=0xc000001 <- add a branch from the b.ne to here
-    // r2 cmd:
-    // /x 00061f1200190071:00FFFFFF00FFFFFF
-    // or:
-    // /x E003202A1f041f7200000054:E0FFE0FF1FFCFFFF000000FF
-    uint64_t matches[] = {
-        0x121f0600, // and w*, w*, 6
-        0x71001900  // subs w*, w*, 6
+static bool kpf_vm_map_protect_branch(struct xnu_pf_patch *patch, uint32_t *opcode_stream)
+{
+    int32_t off = sxt32(opcode_stream[2] >> 5, 19);
+    opcode_stream[2] = 0x14000000 | (uint32_t)off;
+    return kpf_vm_map_protect_callback(opcode_stream + 2 + off); // uint32 takes care of << 2
+}
+
+static bool kpf_vm_map_protect_inline(struct xnu_pf_patch *patch, uint32_t *opcode_stream)
+{
+    DEVLOG("vm_map_protect candidate at 0x%llx", xnu_ptr_to_va(opcode_stream));
+
+    // Match all possible combo and adjust index to the "csel"
+    uint32_t idx = 2;
+    uint32_t op = opcode_stream[idx];
+    if
+    (
+        (op & 0xfffffe10) == 0x12090000 ||  // and w{0-15}, w{0-15}, 0x800000
+        (op & 0xfffffe1f) == 0xf269001f     // tst x{0-15}, 0x800000
+    )
+    {
+        ++idx;
+    }
+
+    if
+    (
+        (opcode_stream[idx+0] & 0xfff0fe10) == 0x2a000000 && // orr w{0-15}, w{0-15}, w{0-15}
+        (opcode_stream[idx+1] & 0xfffffe10) == 0x121d7a00 && // and w{0-15}, w{16-31}, 0xfffffffb
+        (opcode_stream[idx+2] & 0xfffffe1f) == 0x7100001f    // cmp w{0-15}, 0
+    )
+    {
+        idx += 3;
+    }
+    else if
+    (
+        (opcode_stream[idx+0] & 0xfffffe1f) == 0x7a400800 && // ccmp w{0-15}, 0, 0, eq
+        (opcode_stream[idx+1] & 0xfffffe10) == 0x121d7a00    // and w{0-15}, w{16-31}, 0xfffffffb
+    )
+    {
+        idx += 2;
+    }
+    else
+    {
+        return false;
+    }
+
+    op = opcode_stream[idx];
+    uint32_t shift = 0;
+    if((op & 0xfff0fe10) == 0x1a900010) // csel w{16-31}, w{0-15}, w{16-31}, eq
+    {
+        shift = 16;
+    }
+    else if((op & 0xfff0fe10) == 0x1a801210) // csel w{16-31}, w{16-31}, w{0-15}, ne
+    {
+        shift = 5;
+    }
+    else
+    {
+        return false;
+    }
+
+    // Make sure csel regs match
+    if((op & 0x1f) != ((op >> shift) & 0x1f))
+    {
+        panic("vm_map_protect: mismatching csel regs");
+    }
+    opcode_stream[idx] = NOP;
+    return kpf_vm_map_protect_callback(opcode_stream + idx + 1);
+}
+
+static void kpf_vm_map_protect_patch(xnu_pf_patchset_t* xnu_text_exec_patchset)
+{
+    // We do two things at once here: allow protecting to rwx, and ignore map->map_disallow_new_exec.
+    // There's a total of 4 patters we look for. On iOS 13.3.x and older:
+    //
+    // 0xfffffff0071a10cc      c9061f12       and w9, w22, 6
+    // 0xfffffff0071a10d0      3f190071       cmp w9, 6
+    // 0xfffffff0071a10d4      81000054       b.ne 0xfffffff0071a10e4
+    // 0xfffffff0071a10d8      6800a837       tbnz w8, 0x15, 0xfffffff0071a10e4
+    //
+    // On most versions from 13.4-15.2 and 16.0 onwards either this:
+    //
+    // 0xfffffff0072bb038      e903372a       mvn w9, w23
+    // 0xfffffff0072bb03c      3f051f72       tst w9, 6
+    // 0xfffffff0072bb040      21010054       b.ne 0xfffffff0072bb064
+    // 0xfffffff0072bb044      0801b837       tbnz w8, 0x17, 0xfffffff0072bb064
+    //
+    // Or this:
+    //
+    // 0xfffffff007afe51c      e903362a       mvn w9, w22
+    // 0xfffffff007afe520      3f051f72       tst w9, 6
+    // 0xfffffff007afe524      a1000054       b.ne 0xfffffff007afe538
+    // 0xfffffff007afe528      88000035       cbnz w8, 0xfffffff007afe538
+    //
+    // And then there's a weird carveout from iOS 15.2 to 15.7.x that has stuff inlined in variations of:
+    //
+    // [and w{0-15}, w{0-15}, 0x800000]                                                 | [tst x{0-15}, 0x800000]
+    //                                              mvn w{0-15}, w{16-31}
+    //                                              and w{0-15}, w{0-15}, 6
+    // [and w{0-15}, w{0-15}, 0x800000]                                                 | [tst x{0-15}, 0x800000]
+    //  orr w{0-15}, w{0-15}, w{0-15}                                                   | ccmp w{0-15}, 0, 0, eq
+    //  and w{0-15}, w{16-31}, 0xfffffffb                                               | and w{0-15}, w{16-31}, 0xfffffffb
+    //  cmp w{0-15}, 0                                                                  | {csel w{16-31}, w{0-15}, w{16-31}, eq | csel w{16-31}, w{16-31}, w{0-15}, ne}
+    // {csel w{16-31}, w{0-15}, w{16-31}, eq | csel w{16-31}, w{16-31}, w{0-15}, ne}
+    //
+    // We just match the "mvn w{0-15}, w{16-31}; and w{0-15}, w{0-15}, w{16-31}" and check the rest in the callback.
+    //
+    // In the first three cases we simply patch the "b.ne" branch to unconditional, and in the last case we nop out the "csel".
+    //
+    // After all of these, the is a "tb[n]z w{0-15}, 9, ..." really soon, which we either patch to nop (if tbnz) or unconditional branch (if tbz).
+    //
+    // /x 00061f121f180071010000540000a837:10feffff1ffeffff1f0000ff1000f8ff
+    // /x e003302a1f041f72010000540000a837:f0fff0ff1ffeffff1f0000ff1000e8ff
+    // /x e003302a1f041f720100005400000035:f0fff0ff1ffeffff1f0000ff100000ff
+    // /x e003302a00041f12:f0fff0ff10feffff
+    uint64_t matches_old[] = {
+        0x121f0600, // and w{0-15}, w{16-31}, 6
+        0x7100181f, // cmp w{0-15}, 6
+        0x54000001, // b.ne 0x...
+        0x37a80000, // tbnz w{0-15}, 0x15, 0x...
     };
-    uint64_t masks[] = {
-        0xffffff00,
-        0xffffff00
+    uint64_t masks_old[] = {
+        0xfffffe10,
+        0xfffffe1f,
+        0xff00001f,
+        0xfff80010,
     };
-    xnu_pf_maskmatch(xnu_text_exec_patchset, "vm_map_protect", matches, masks, sizeof(matches)/sizeof(uint64_t), false, (void*)kpf_mac_vm_map_protect_callback);
-    uint64_t i_matches[] = {
-        0x2A2003E0, // mvn w*, w*
-        0x721F041F, // tst w*, 6
-        0x54000000  // b.eq *
+    xnu_pf_maskmatch(xnu_text_exec_patchset, "vm_map_protect", matches_old, masks_old, sizeof(matches_old)/sizeof(uint64_t), false, (void*)kpf_vm_map_protect_branch);
+
+    uint64_t matches_new[] = {
+        0x2a3003e0, // mvn w{0-15}, w{16-31}
+        0x721f041f, // tst w{0-15}, 6
+        0x54000001, // b.ne 0x...
+        0x37a80000, // tbnz w{0-15}, {0x15 | 0x17}, 0x...
     };
-    uint64_t i_masks[] = {
-        0xFFE0FFE0,
-        0xFFFFFC1F,
-        0xff000000
+    uint64_t masks_new[] = {
+        0xfff0fff0,
+        0xfffffe1f,
+        0xff00001f,
+        0xffe80010,
     };
-    xnu_pf_maskmatch(xnu_text_exec_patchset, "vm_map_protect2", i_matches, i_masks, sizeof(i_matches)/sizeof(uint64_t), false, (void*)kpf_mac_vm_map_protect_callback);
+    xnu_pf_maskmatch(xnu_text_exec_patchset, "vm_map_protect", matches_new, masks_new, sizeof(matches_new)/sizeof(uint64_t), false, (void*)kpf_vm_map_protect_branch);
+
+    matches_new[3] = 0x35000000; // cbnz w{0-15}, 0x...
+    masks_new[3]   = 0xff000010;
+    xnu_pf_maskmatch(xnu_text_exec_patchset, "vm_map_protect", matches_new, masks_new, sizeof(matches_new)/sizeof(uint64_t), false, (void*)kpf_vm_map_protect_branch);
+
+    uint64_t matches_inline[] = {
+        0x2a3003e0, // mvn w{0-15}, w{16-31}
+        0x121f0400, // and w{0-15}, w{0-15}, 6
+    };
+    uint64_t masks_inline[] = {
+        0xfff0fff0,
+        0xfffffe10,
+    };
+    xnu_pf_maskmatch(xnu_text_exec_patchset, "vm_map_protect", matches_inline, masks_inline, sizeof(matches_inline)/sizeof(uint64_t), false, (void*)kpf_vm_map_protect_inline);
 }
 bool found_vm_fault_enter;
 bool vm_fault_enter_callback(struct xnu_pf_patch* patch, uint32_t* opcode_stream)
@@ -1639,77 +1733,83 @@ bool kpf_apfs_patches_mount(struct xnu_pf_patch* patch, uint32_t* opcode_stream)
     return true;
 }
 
-bool kpf_apfs_personalized_hash(struct xnu_pf_patch* patch, uint32_t* opcode_stream) {
-    uint32_t* cbz_success = find_prev_insn(opcode_stream, 0x500, 0x34000000, 0xff000000);
+bool kpf_apfs_auth_patches(struct xnu_pf_patch* patch, uint32_t* opcode_stream) {
+    uint64_t page = ((uint64_t)(opcode_stream) & ~0xfffULL) + adrp_off(opcode_stream[0]);
+    uint32_t off = (opcode_stream[1] >> 10) & 0xfff;
+    const char *str = (const char *)(page + off);
+    
+    if (strcmp(str, "is_root_hash_authentication_required_ios") == 0) {
+        uint32_t* func_start = find_prev_insn(opcode_stream, 0x25, 0xa9b000f0, 0xfff000f0);
+        func_start[0] = 0xd2800000;
+        func_start[1] = RET;
 
-    if (!cbz_success) {
-        puts("kpf_apfs_personalized_hash: failed to find success cbz");
-        return false;
-    } else {
-        puts("KPF: found kpf_apfs_personalized_hash");
-    }
+        puts("KPF: Found root authentication required");
+    } else if (strcmp(str, "\"could not authenticate personalized root hash! (%p, %zu)\\n\" @%s:%d") == 0) {
+        uint32_t* cbz_success = find_prev_insn(opcode_stream, 0x500, 0x34000000, 0xff000000);
+    
+        if (!cbz_success) {
+            puts("kpf_apfs_personalized_hash: failed to find success cbz");
+            return false;
+        } else {
+            puts("KPF: found kpf_apfs_personalized_hash");
+        }
 
-    uint32_t branch_success = 0x14000000 | (sxt32(cbz_success[0] >> 5, 19) & 0x03ffffff);
+        uint32_t branch_success = 0x14000000 | (sxt32(cbz_success[0] >> 5, 19) & 0x03ffffff);
 
-    uint32_t* cbz_fail = find_prev_insn(cbz_success, 0x10, 0xb4000000, 0xff000000);
+        uint32_t* cbz_fail = find_prev_insn(cbz_success, 0x10, 0xb4000000, 0xff000000);
 
-    if (!cbz_fail) {
-        puts("kpf_apfs_personalized_hash: failed to find fail cbz");
-        return false;
-    }
+        if (!cbz_fail) {
+            puts("kpf_apfs_personalized_hash: failed to find fail cbz");
+            return false;
+        }
 #if DEV_BUILD
-    uint64_t addr_fail = xnu_ptr_to_va(cbz_fail) + (sxt32(cbz_fail[0] >> 5, 19) << 2);
+        uint64_t addr_fail = xnu_ptr_to_va(cbz_fail) + (sxt32(cbz_fail[0] >> 5, 19) << 2);
 #endif
-    uint32_t array_pos = (sxt32(cbz_fail[0] >> 5, 19) << 2) / 4;
+        uint32_t array_pos = (sxt32(cbz_fail[0] >> 5, 19) << 2) / 4;
 
-    DEVLOG("addr diff is %d, addrs: success is 0x%lx, fail is 0x%lx, target is 0x%llx, insns: branch is 0x%lx (BE)", array_pos, xnu_ptr_to_va(cbz_success), xnu_ptr_to_va(cbz_fail), addr_fail, branch_success);
+        DEVLOG("addr diff is %d, addrs: success is 0x%lx, fail is 0x%lx, target is 0x%llx, insns: branch is 0x%lx (BE)", array_pos, xnu_ptr_to_va(cbz_success), xnu_ptr_to_va(cbz_fail), addr_fail, branch_success);
 
-    cbz_fail[array_pos - 1] = branch_success;
+        cbz_fail[array_pos - 1] = branch_success;
 
-    return true;
-}
-
-bool kpf_apfs_auth_required(struct xnu_pf_patch* patch, uint32_t* opcode_stream) {
-    opcode_stream[-19] = 0xd2800000;
-    opcode_stream[-18] = RET;
-
-    puts("KPF: Found root authentication required");
-
-    return kpf_apfs_personalized_hash(patch, opcode_stream);
+        return true;
+    } else {
+        return false;
+    }
+    return false;
 }
 
 bool kpf_apfs_seal_broken(struct xnu_pf_patch* patch, uint32_t* opcode_stream) {
     uint64_t page = ((uint64_t)(opcode_stream) & ~0xfffULL) + adrp_off(opcode_stream[0]);
     uint32_t off = (opcode_stream[1] >> 10) & 0xfff;
     const char *str = (const char *)(page + off);
-
+    
     if (strcmp(str, "\"root volume seal is broken %p\\n\" @%s:%d") != 0) {
         return false;
     }
-
+    
     uint32_t* tbnz = find_prev_insn(opcode_stream, 0x100, 0x37000000, 0xff000000);
-
+    
     if (!tbnz) {
         panic("kpf_apfs_seal_broken: failed to find tbnz");
     }
-
-    tbnz[0] = RET;
-
+    
+    tbnz[0] = NOP;
+    
     puts("KPF: Found root seal broken");
     return true;
 }
 
 bool kpf_apfs_allow_mount_patches(struct xnu_pf_patch *patch, uint32_t *opcode_stream) {
     uint32_t *tbnz = find_prev_insn(opcode_stream, 0x100, 0x37000000, 0xff000000);
-
+    
     tbnz[0] = NOP;
-
+    
     puts("KPF: found updating mount not allowed");
 
     opcode_stream[0] = 0x52800000; /* mov w0, 0 */
-
+    
     puts("KPF: found apfs_vfsop_mount");
-
+    
     return true;
 }
 
@@ -1729,7 +1829,7 @@ bool kpf_apfs_vfsop_mount(struct xnu_pf_patch *patch, uint32_t *opcode_stream)
     return true;
 }
 
-void kpf_apfs_patches(xnu_pf_patchset_t* patchset, bool have_union) {
+void kpf_apfs_patches(xnu_pf_patchset_t* patchset, bool have_union, bool ios16) {
     // there is a check in the apfs mount function that makes sure that the kernel task is calling this function (current_task() == kernel_task)
     // we also want to call it so we patch that check out
     // example from i7 13.3:
@@ -1811,19 +1911,19 @@ void kpf_apfs_patches(xnu_pf_patchset_t* patchset, bool have_union) {
         0xff000000,
     };
     xnu_pf_maskmatch(patchset, "apfs_seal_broken", ii_matches, ii_masks, sizeof(ii_matches)/sizeof(uint64_t), true, (void*)kpf_apfs_seal_broken);
-
-    uint64_t iii_matches[] = {
-        0x90ff8200,
-        0x910002d6,
-        0x52800008
-    };
-    uint64_t iii_masks[] = {
-        0xffffff00,
-        0xff0003ff,
-        0xffff000f
-    };
-    xnu_pf_maskmatch(patchset, "apfs_auth_required", iii_matches, iii_masks, sizeof(iii_matches)/sizeof(uint64_t), false, (void*)kpf_apfs_auth_required);
-
+    
+    if (ios16) {
+        uint64_t iii_matches[] = {
+            0x00000000,
+            0x91000000,
+        };
+        uint64_t iii_masks[] = {
+            0x0f000000,
+            0xff000000,
+        };
+        xnu_pf_maskmatch(patchset, "apfs_auth_patches", iii_matches, iii_masks, sizeof(iii_matches)/sizeof(uint64_t), false, (void*)kpf_apfs_auth_patches);
+    }
+    
     uint64_t remount_matches2[] = {
         0x37700000, // tbnz w0, 0xe, *
         0xb94003a0, // ldr x*, [x29/sp, *]
@@ -2684,7 +2784,7 @@ void command_kpf() {
     if((constraints_string_match != NULL) != (kernelVersion.darwinMajor >= 22)) panic("Launch constraints presence doesn't match expected Darwin version");
 #endif
 
-    kpf_apfs_patches(apfs_patchset, rootvp_string_match == NULL);
+    kpf_apfs_patches(apfs_patchset, rootvp_string_match == NULL, cryptex_string_match != NULL);
     if(livefs_string_match)
     {
         kpf_root_livefs_patch(apfs_patchset);
@@ -2800,7 +2900,7 @@ void command_kpf() {
     kpf_conversion_patch(xnu_text_exec_patchset);
     kpf_mac_mount_patch(xnu_text_exec_patchset);
     kpf_mac_dounmount_patch_0(xnu_text_exec_patchset);
-    kpf_mac_vm_map_protect_patch(xnu_text_exec_patchset);
+    kpf_vm_map_protect_patch(xnu_text_exec_patchset);
     kpf_mac_vm_fault_enter_patch(xnu_text_exec_patchset);
     kpf_nvram_unlock(xnu_text_exec_patchset);
     kpf_find_shellcode_area(xnu_text_exec_patchset);
@@ -2838,6 +2938,7 @@ void command_kpf() {
     if (!dyld_hook_addr) panic("no dyld_hook_addr?");
     if (offsetof_p_flags == (uint32_t)-1) panic("no p_flags?");
     if (!found_vm_fault_enter) panic("no vm_fault_enter");
+    if (!found_vm_map_protect) panic("Missing patch: vm_map_protect");
     if (!vfs_context_current) panic("missing patch: vfs_context_current");
     if (kmap_port_string_match && !found_convert_port_to_map) panic("missing patch: convert_port_to_map");
     if (!rootvp_string_match && !kpf_has_done_mac_mount) panic("Missing patch: mac_mount");
